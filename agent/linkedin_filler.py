@@ -383,6 +383,7 @@ async def apply_to_job(page, job: dict, resume_row: dict, answers: dict) -> tupl
     url      = job["job_url"]
     job_id   = job["job_id"]
     pdf_url  = resume_row.get("pdf_url", "")
+    all_unknown: list[UnknownQuestion] = []
 
     if not pdf_url:
         print(f"[filler] no PDF for {job_id} — skipping")
