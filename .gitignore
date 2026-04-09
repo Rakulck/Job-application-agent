@@ -1,0 +1,10 @@
+node_modules/
+__pycache__/
+*.pyc
+.env
+linkedin_cookies.json
+*.log
+venv/
+env/
+.idea/
+.vscode/

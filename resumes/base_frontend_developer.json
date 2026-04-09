@@ -1,0 +1,75 @@
+{
+  "name": "Rakul C Kandavel",
+  "email": "rakulck31@gmail.com",
+  "phone": "+1 7038593589",
+  "linkedin": "www.linkedin.com/in/rakul-c-kandavel-9011b0191/",
+  "portfolio": "rakulck31.vercel.app/",
+  "github": "github.com/Rakulck",
+  "location": "Seattle, WA",
+  "summary": "Frontend developer with 3+ years of experience building responsive, accessible web and mobile interfaces using React, TypeScript, and Tailwind CSS. Proven track record delivering production-grade UIs with AI integrations, real-time data, and WCAG compliance across cloud platforms including Firebase and Supabase.",
+  "skills": ["React.js", "TypeScript", "JavaScript", "Next.js", "HTML", "CSS", "Tailwind CSS", "React Native", "Redux", "Jest", "React Testing Library", "Firebase", "Supabase", "Git", "Figma", "AWS"],
+  "experience": [
+    {
+      "company": "Slidez - AI Social Shopping",
+      "title": "Lead Developer",
+      "location": "Seattle, WA",
+      "start_date": "Jan 2025",
+      "end_date": "Present",
+      "bullets": [
+        "Led front-end development of an AI-powered social shopping platform, integrating Gemini APIs for virtual try-ons and AI stylist features, driving adoption by 1,000+ active users.",
+        "Built responsive interfaces with React, TypeScript, and React Native ensuring WCAG accessibility compliance and high performance across iOS and Android.",
+        "Engineered real-time data pipelines on Supabase and Firebase supporting thousands of concurrent sessions.",
+        "Applied modular micro-architecture and Git workflows to ensure reliability and rapid deployment."
+      ]
+    },
+    {
+      "company": "Innara AI",
+      "title": "Software Developer",
+      "location": "Remote",
+      "start_date": "Oct 2024",
+      "end_date": "Jan 2025",
+      "bullets": [
+        "Designed a wellness app UI integrating Gemini, OpenAI, and Spoonacular APIs for personalized chatbot recommendations serving 500+ monthly active users.",
+        "Refactored the codebase into scalable TypeScript modules and optimized state management for performance.",
+        "Applied prompt engineering and schema ingestion pipelines boosting recommendation accuracy and user satisfaction."
+      ]
+    },
+    {
+      "company": "Book My Doctor",
+      "title": "Software Developer",
+      "location": "Remote",
+      "start_date": "Jan 2023",
+      "end_date": "June 2024",
+      "bullets": [
+        "Delivered responsive, mobile-first UI using React Native and Tailwind improving patient booking engagement by 40%.",
+        "Built a healthcare appointment booking system adopted by 200+ patients and providers, processing hundreds of bookings without downtime.",
+        "Integrated Firebase APIs for real-time scheduling and secure data handling."
+      ]
+    },
+    {
+      "company": "IBM",
+      "title": "Research Assistant",
+      "location": "Remote",
+      "start_date": "June 2022",
+      "end_date": "Dec 2022",
+      "bullets": [
+        "Built a web application presenting predictive analytics with WCAG accessibility compliance for non-technical stakeholders.",
+        "Developed LSTM-based predictive model for time-series forecasting with 92% accuracy."
+      ]
+    }
+  ],
+  "education": [
+    {
+      "school": "George Mason University",
+      "degree": "Master of Science - Computer Science",
+      "location": "Fairfax, VA",
+      "graduation": "May 2025"
+    },
+    {
+      "school": "PSG College of Technology",
+      "degree": "Bachelor of Technology - Information Technology",
+      "location": "Coimbatore, India",
+      "graduation": "Apr 2023"
+    }
+  ]
+}

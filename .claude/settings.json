@@ -1,0 +1,20 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(tee run6.log)",
+      "Bash(cp base_frontend.json base_frontend_developer.json)",
+      "Bash(cp base_frontend.json base_web_developer.json)",
+      "Bash(cp base_frontend.json base_react_developer.json)",
+      "Bash(cp base_fullstack.json base_fullstack_developer.json)",
+      "Bash(cp base_resume.json base_software_developer.json)",
+      "Bash(python3)",
+      "WebFetch(domain:claude.ai)",
+      "mcp__supabase__list_migrations",
+      "mcp__supabase__list_tables",
+      "Bash(python3 \"c:\\\\Users\\\\Asus\\\\.claude\\\\skills\\\\ui-ux-pro-max\\\\scripts\\\\search.py\" \"SaaS dashboard settings form\" --design-system -p \"Job Application Agent Profile\")"
+    ],
+    "additionalDirectories": [
+      "\\tmp"
+    ]
+  }
+}

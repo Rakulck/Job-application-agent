@@ -1,0 +1,10 @@
+python-jobspy
+playwright
+playwright-stealth
+groq
+python-docx
+reportlab
+supabase
+apscheduler
+python-dotenv
+pandas
