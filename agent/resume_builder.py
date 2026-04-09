@@ -1,5 +1,4 @@
 import os
-import re
 import json
 import tempfile
 from io import BytesIO
@@ -189,7 +188,7 @@ MAX_EXPERIENCE_ENTRIES = 3   # hard cap — keeps resume to one page
 MAX_BULLETS_PER_JOB   = 3   # hard cap — keeps resume to one page
 
 
-def build_docx(data: dict, company: str = "") -> str:
+def build_docx(data: dict) -> str:
     """Build a .docx resume from tailored JSON. Returns file path."""
     doc = Document()
 
@@ -294,11 +293,17 @@ def build_docx(data: dict, company: str = "") -> str:
                 rest += f",  {edu.get('graduation', '')}"
             _add_run(p, rest, bold=False, font_size=FS_BODY)
 
-    # Filename: FirstLast_Company.pdf (first + last name only, no middle initial)
+    # Filename: Rakul_C_Kandavel.pdf
     name_parts   = data.get("name", "resume").split()
-    clean_name   = f"{name_parts[0]}_{name_parts[-1]}" if len(name_parts) >= 2 else "_".join(name_parts)
-    company_slug = re.sub(r"[^A-Za-z0-9]+", "_", (company or "")).strip("_")
-    slug = f"{clean_name}_{company_slug}" if company_slug else clean_name
+    if len(name_parts) >= 3:
+        # Has middle name/initial: First Middle Last
+        slug = f"{name_parts[0]}_{name_parts[1][0]}_{name_parts[-1]}"
+    elif len(name_parts) == 2:
+        # Only first and last name
+        slug = f"{name_parts[0]}_{name_parts[1]}"
+    else:
+        slug = name_parts[0] if name_parts else "resume"
+
     path = os.path.join(OUTPUT_DIR, f"{slug}.docx")
     doc.save(path)
     print(f"[builder] .docx saved: {path}")
@@ -359,20 +364,20 @@ def run_builder(job_id: str = None, force: bool = False):
 
     print(f"[builder] building {len(rows)} resumes")
 
-    # Pre-fetch all job companies in one query
-    job_companies = {
-        r["job_id"]: r.get("company", "")
-        for r in supabase.table("jobs").select("job_id, company").execute().data
+    # Pre-fetch all job data (company and title) in one query
+    job_data = {
+        r["job_id"]: {"company": r.get("company", ""), "title": r.get("title", "")}
+        for r in supabase.table("jobs").select("job_id, company, title").execute().data
     }
 
     for row in rows:
         jid = row["job_id"]
         tailored = row["tailored_json"]
-        company  = job_companies.get(jid, "")
+        company  = job_data.get(jid, {}).get("company", "")
         print(f"[builder] processing job_id: {jid} ({company})")
 
         try:
-            docx_path = build_docx(tailored, company=company)
+            docx_path = build_docx(tailored)
             pdf_path = build_pdf(tailored, docx_path)
             url = upload_pdf(pdf_path, jid)
 

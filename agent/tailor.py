@@ -318,7 +318,7 @@ Score this resume against the job description."""
         return json.loads(raw)
     except (json.JSONDecodeError, Exception) as e:
         print(f"[score_ats] error scoring: {e}")
-        return {"score": 0, "matched_keywords": [], "missing_keywords": []}
+        return {"score": None, "matched_keywords": [], "missing_keywords": []}
 
 
 # ---------------------------------------------------------------------------
@@ -392,15 +392,18 @@ def run_tailor(job_id: str = None, limit: int = 10):
         try:
             base = load_base_resume(role)
             base_ats_result = score_ats(base, jd)
-            base_score = base_ats_result.get("score", 0)
-            print(f"[ATS] Base score: {base_score}/100 for {company}")
+            base_score = base_ats_result.get("score", None)
+            if base_score is not None:
+                print(f"[ATS] Base score: {base_score}/100 for {company}")
+            else:
+                print(f"[ATS] Base score: unable to calculate for {company}")
         except Exception as e:
             print(f"[tailor] error scoring base resume for {jid}: {e}")
-            base_score = 0
+            base_score = None
             base = None
 
         # If base already meets threshold, skip tailoring entirely
-        if base_score >= MIN_ATS_SCORE:
+        if base_score is not None and base_score >= MIN_ATS_SCORE:
             print(f"[tailor] base score {base_score} >= {MIN_ATS_SCORE} — applying directly without tailoring")
             if base is None:
                 try:
@@ -416,11 +419,12 @@ def run_tailor(job_id: str = None, limit: int = 10):
                 "ats_score": base_score,
                 "missing_keywords": base_ats_result.get("missing_keywords", []),
             }).execute()
-            print(f"[tailor] saved base resume (score: {base_score}/100) for {jid}")
+            score_str = f"{base_score}/100" if base_score is not None else "N/A"
+            print(f"[tailor] saved base resume (score: {score_str}) for {jid}")
             continue
 
         best_resume = None
-        best_score = 0
+        best_score = None
         best_missing_keywords = []
 
         # Try tailoring up to 2 times
@@ -435,19 +439,22 @@ def run_tailor(job_id: str = None, limit: int = 10):
 
                 # Score this attempt
                 ats_result = score_ats(tailored, jd)
-                current_score = ats_result.get("score", 0)
+                current_score = ats_result.get("score")
                 missing = ats_result.get("missing_keywords", [])
 
-                print(f"[ATS] Attempt {attempt_num} score: {current_score}/100 for {company}")
+                if current_score is not None:
+                    print(f"[ATS] Attempt {attempt_num} score: {current_score}/100 for {company}")
+                else:
+                    print(f"[ATS] Attempt {attempt_num}: unable to calculate score for {company}")
 
-                # Keep the best scoring version
-                if current_score > best_score:
+                # Keep the best scoring version (ignore None scores in comparison)
+                if current_score is not None and (best_score is None or current_score > best_score):
                     best_score = current_score
                     best_resume = tailored
                     best_missing_keywords = missing
 
                 # If score is good or on final attempt, stop retrying
-                if current_score >= MIN_ATS_SCORE or attempt_num == 2:
+                if (current_score is not None and current_score >= MIN_ATS_SCORE) or attempt_num == 2:
                     break
 
             except json.JSONDecodeError as e:
@@ -468,7 +475,7 @@ def run_tailor(job_id: str = None, limit: int = 10):
                     base = load_base_resume(role)
                     base["location"] = map_to_preferred_location(job.get("location", ""))
                     best_resume = base
-                    best_score = 0
+                    best_score = None
                     break
                 print(f"[tailor] error for {jid}: {e}")
                 if attempt_num == 1:
@@ -494,7 +501,8 @@ def run_tailor(job_id: str = None, limit: int = 10):
             "missing_keywords": best_missing_keywords,
         }).execute()
 
-        print(f"[tailor] saved resume (score: {best_score}/100) for {jid}")
+        score_str = f"{best_score}/100" if best_score is not None else "N/A"
+        print(f"[tailor] saved resume (score: {score_str}) for {jid}")
 
     print("[tailor] done")
 

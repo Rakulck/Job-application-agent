@@ -11,7 +11,11 @@
       "WebFetch(domain:claude.ai)",
       "mcp__supabase__list_migrations",
       "mcp__supabase__list_tables",
-      "Bash(python3 \"c:\\\\Users\\\\Asus\\\\.claude\\\\skills\\\\ui-ux-pro-max\\\\scripts\\\\search.py\" \"SaaS dashboard settings form\" --design-system -p \"Job Application Agent Profile\")"
+      "Bash(python3 \"c:\\\\Users\\\\Asus\\\\.claude\\\\skills\\\\ui-ux-pro-max\\\\scripts\\\\search.py\" \"SaaS dashboard settings form\" --design-system -p \"Job Application Agent Profile\")",
+      "Read(//c/Users/Asus/OneDrive/Desktop/**)",
+      "Skill(schedule)",
+      "Skill(schedule:*)",
+      "Bash(git add:*)"
     ],
     "additionalDirectories": [
       "\\tmp",

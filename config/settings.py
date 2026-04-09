@@ -9,6 +9,7 @@ ROLE_KEYWORDS = {
     "web_developer": ["web developer", "web dev", "web engineer"],
     "react_developer": ["react developer", "react dev", "react engineer", "react js developer"],
     "fullstack_developer": ["full stack developer", "fullstack developer", "full-stack developer", "full stack engineer"],
+    "mobile_developer": ["mobile developer", "ios developer", "android developer", "react native developer", "flutter developer"],
 }
 
 HOURS_OLD = 1               # maps to f_TPR=r3600 (last 1 hour)

@@ -104,6 +104,7 @@ def run_pipeline():
 
     # ── Step 1: Parallel scraping (one browser per role) ─────────────────────
     print("[scheduler] step 1/4 — scraping LinkedIn (parallel per role)...")
+    total_scraped = 0
     try:
         titles = load_job_titles()
         if titles:
@@ -116,6 +117,14 @@ def run_pipeline():
             print("[scheduler] no job titles configured — skipping scrape")
     except Exception as e:
         print(f"[scheduler] scraper error: {e}")
+
+    # ── Skip remaining steps if no jobs were scraped ────────────────────────────
+    if total_scraped == 0:
+        print("[scheduler] no new jobs found — skipping tailor/builder/filler stages")
+        elapsed = (datetime.now() - start).seconds
+        mins, secs = divmod(elapsed, 60)
+        print(f"[scheduler] === pipeline complete in {mins}m {secs}s ===\n")
+        return
 
     # ── Step 2: Tailor resumes with Groq ─────────────────────────────────────
     print("[scheduler] step 2/4 — tailoring resumes...")
