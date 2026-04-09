@@ -284,7 +284,7 @@ async def _search_title(title: str, page) -> list[dict]:
     url = (
         f"https://www.linkedin.com/jobs/search/"
         f"?keywords={encoded}"
-        f"&f_TPR=r86400"  # last 24 hours
+        f"&f_TPR=r3600"  # last 1 hour
         f"&f_AL=true"     # Easy Apply only
         f"&f_E=2"         # entry level
     )

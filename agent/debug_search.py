@@ -51,7 +51,7 @@ async def main():
             url = (
                 f"https://www.linkedin.com/jobs/search/"
                 f"?keywords={encoded}"
-                f"&f_TPR=r86400"  # posted in last 24 hours
+                f"&f_TPR=r3600"  # posted in last 1 hour
                 f"&f_AL=true"     # LinkedIn Easy Apply only
                 f"&f_E=2"         # entry level only
             )

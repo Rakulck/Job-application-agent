@@ -11,7 +11,7 @@ ROLE_KEYWORDS = {
     "fullstack_developer": ["full stack developer", "fullstack developer", "full-stack developer", "full stack engineer"],
 }
 
-HOURS_OLD = 24              # maps to f_TPR=r86400 (last 24 hours)
+HOURS_OLD = 1               # maps to f_TPR=r3600 (last 1 hour)
 RESULTS_PER_SEARCH = 50     # LinkedIn shows 25/page — this = max 2 pages
 MAX_APPLICANTS = 100
 LINKEDIN_EXPERIENCE_LEVEL = [2]  # 2 = Entry level (LinkedIn f_E filter)

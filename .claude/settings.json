@@ -14,7 +14,8 @@
       "Bash(python3 \"c:\\\\Users\\\\Asus\\\\.claude\\\\skills\\\\ui-ux-pro-max\\\\scripts\\\\search.py\" \"SaaS dashboard settings form\" --design-system -p \"Job Application Agent Profile\")"
     ],
     "additionalDirectories": [
-      "\\tmp"
+      "\\tmp",
+      "c:\\Users\\Asus\\.claude\\projects\\c--Users-Asus-OneDrive-Desktop-job-application-agent\\memory"
     ]
   }
 }
