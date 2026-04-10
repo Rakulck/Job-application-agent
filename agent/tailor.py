@@ -179,7 +179,10 @@ STRICT RULES:
 - Do NOT invent experience or skills the candidate does not have
 - Keep bullets concise, achievement-oriented, and ATS-friendly
 - Output ONLY valid JSON — no explanation, no markdown, no code fences
-- Output must have the exact same structure as the input JSON"""
+- Output must have the exact same structure as the input JSON
+- The experience array MUST contain the EXACT SAME NUMBER of entries as the input — do not add or remove jobs
+- Skills must be individual technology/tool names only (e.g. "React.js", "TypeScript") — no sentences, no category labels, no compound strings longer than 25 characters
+- Do NOT invent skills. Only use skills that appear in the input skills list"""
 
 def tailor_resume(base: dict, jd: str, hint_keywords: list[str] = None) -> dict:
     """Send base resume + JD to Groq and return tailored resume dict.
@@ -208,7 +211,7 @@ Rewrite the resume to match this job description. Follow all rules. Return only 
             {"role": "system", "content": SYSTEM_PROMPT},
             {"role": "user", "content": user_prompt},
         ],
-        max_tokens=1500,
+        max_tokens=2500,
         temperature=0.3,
         response_format={"type": "json_object"},
     )
@@ -223,18 +226,41 @@ Rewrite the resume to match this job description. Follow all rules. Return only 
             tailored[field] = base[field]
 
     # Restore company names, titles, dates inside experience
-    if "experience" in base and "experience" in tailored:
-        for i, exp in enumerate(base["experience"]):
-            if i < len(tailored["experience"]):
-                tailored["experience"][i]["company"] = exp["company"]
-                tailored["experience"][i]["title"] = exp["title"]
-                tailored["experience"][i]["location"] = exp["location"]
-                tailored["experience"][i]["start_date"] = exp["start_date"]
-                tailored["experience"][i]["end_date"] = exp["end_date"]
+    # If Groq dropped entries, pad back to full base length
+    base_exps = base.get("experience", [])
+    tailored_exps = tailored.get("experience", [])
+    while len(tailored_exps) < len(base_exps):
+        tailored_exps.append({})
+    tailored["experience"] = tailored_exps
+
+    for i, exp in enumerate(base_exps):
+        tailored["experience"][i]["company"] = exp["company"]
+        tailored["experience"][i]["title"] = exp["title"]
+        tailored["experience"][i]["location"] = exp["location"]
+        tailored["experience"][i]["start_date"] = exp["start_date"]
+        tailored["experience"][i]["end_date"] = exp["end_date"]
+        # If Groq dropped this entry entirely, restore original bullets
+        if not tailored["experience"][i].get("bullets"):
+            tailored["experience"][i]["bullets"] = exp.get("bullets", [])
 
     # Restore education entirely
     if "education" in base:
         tailored["education"] = base["education"]
+
+    # Sanitize and deduplicate skills: remove hallucinated long strings, drop duplicates
+    if "skills" in tailored and isinstance(tailored["skills"], list):
+        seen = set()
+        clean = []
+        for s in tailored["skills"]:
+            s_stripped = s.strip()
+            if len(s_stripped) > 30:
+                # Drop hallucinated long strings
+                continue
+            key = s_stripped.lower()
+            if key not in seen:
+                seen.add(key)
+                clean.append(s_stripped)
+        tailored["skills"] = clean
 
     return tailored
 

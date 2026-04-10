@@ -50,6 +50,16 @@ SKILL_CATEGORIES = {
 
 def _categorize_skills(flat_skills: list) -> dict:
     """Group a flat skills list into categories. Uncategorized go to 'Other'."""
+    # Deduplicate first (case-insensitive)
+    seen = set()
+    deduped = []
+    for s in flat_skills:
+        key = s.strip().lower()
+        if key not in seen:
+            seen.add(key)
+            deduped.append(s.strip())
+    flat_skills = deduped
+
     used = set()
     result = {}
     for cat, keywords in SKILL_CATEGORIES.items():
