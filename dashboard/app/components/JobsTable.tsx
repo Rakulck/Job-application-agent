@@ -303,7 +303,7 @@ export default function JobsTable({
                             ))}
                           </select>
                         ) : (
-                          q.options.map((opt) => (
+                          q.options.map((opt: string) => (
                             <label key={opt} className="flex items-center gap-2 cursor-pointer">
                               <input
                                 type="radio"
