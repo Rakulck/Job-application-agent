@@ -203,12 +203,24 @@ async def _extract_card(page, card_idx: int, total: int) -> dict | None:
 
     # --- No longer accepting check ---
     try:
-        detail = page.locator(".jobs-details__main-content, .jobs-search__job-details, .scaffold-layout__detail")
-        if await detail.count() > 0:
-            body = (await detail.first.inner_text()).lower()
-            if "no longer accepting" in body:
-                print(f"[scraper]   card {card_idx+1}/{total} SKIP [{company}] {title} — no longer accepting")
-                return None
+        # Check multiple possible locations for the "no longer accepting" message
+        detail_selectors = [
+            ".jobs-details__main-content",
+            ".jobs-search__job-details",
+            ".scaffold-layout__detail",
+            "[data-test-id='job-details']",
+            ".jobs-details-modal__header",
+        ]
+
+        for sel in detail_selectors:
+            detail = page.locator(sel)
+            if await detail.count() > 0:
+                body = (await detail.first.inner_text()).lower()
+                # Check for common variations
+                if any(phrase in body for phrase in ["no longer accepting", "no longer accepting applications", "position closed"]):
+                    print(f"[scraper]   card {card_idx+1}/{total} SKIP [{company}] {title} — position no longer accepting applications")
+                    return None
+                break
     except Exception:
         pass
 
@@ -506,7 +518,7 @@ async def run_scraper(test_limit: int = None):
     seen_ids = set()
 
     async with async_playwright() as p:
-        browser = await p.chromium.launch(headless=False, slow_mo=150)
+        browser = await p.chromium.launch(headless=True, slow_mo=150)
         context = await browser.new_context(
             user_agent=(
                 "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
@@ -570,7 +582,7 @@ async def scrape_for_role(role: str, titles: list, test_limit: int = None) -> li
     seen_ids = set()
 
     async with async_playwright() as p:
-        browser = await p.chromium.launch(headless=False, slow_mo=150)
+        browser = await p.chromium.launch(headless=True, slow_mo=150)
         context = await browser.new_context(
             user_agent=(
                 "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
