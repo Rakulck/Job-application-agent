@@ -669,7 +669,7 @@ async def run_filler(test_limit: int = None, job_id: str = None, retry_skipped: 
 
     async with async_playwright() as p:
         browser = await p.chromium.launch(
-            headless=False,
+            headless=True,
             args=["--start-maximized"],
         )
         context = await browser.new_context(
@@ -713,7 +713,7 @@ async def run_filler(test_limit: int = None, job_id: str = None, retry_skipped: 
                         await browser.close()
                     except Exception:
                         pass
-                    browser = await p.chromium.launch(headless=False)
+                    browser = await p.chromium.launch(headless=True)
                     context = await browser.new_context(
                         user_agent=(
                             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
