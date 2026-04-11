@@ -20,6 +20,8 @@ SUPABASE_SERVICE_KEY = os.getenv("SUPABASE_SERVICE_KEY")
 LINKEDIN_EMAIL       = os.getenv("LINKEDIN_EMAIL")
 LINKEDIN_PASSWORD    = os.getenv("LINKEDIN_PASSWORD")
 
+_HEADLESS = os.getenv("HEADLESS", "true").lower() != "false"
+
 supabase       = create_client(SUPABASE_URL, SUPABASE_KEY)
 supabase_admin = create_client(SUPABASE_URL, SUPABASE_SERVICE_KEY)
 
@@ -56,8 +58,10 @@ async def _do_fresh_login(page, context):
 
     # Take a screenshot for visual debugging
     try:
-        await page.screenshot(path="/tmp/linkedin-login-debug.png", full_page=True)
-        print("[filler] screenshot saved to /tmp/linkedin-login-debug.png")
+        import tempfile, pathlib
+        shot_path = pathlib.Path(tempfile.gettempdir()) / "linkedin-login-debug.png"
+        await page.screenshot(path=str(shot_path), full_page=True)
+        print(f"[filler] screenshot saved to {shot_path}")
     except Exception as e:
         print(f"[filler] could not take screenshot: {e}")
 
@@ -694,13 +698,10 @@ async def run_filler(test_limit: int = None, job_id: str = None, retry_skipped: 
 
     async with async_playwright() as p:
         browser = await p.chromium.launch(
-            headless=True,
+            headless=_HEADLESS,
             args=[
                 "--start-maximized",
                 "--disable-blink-features=AutomationControlled",
-                "--no-sandbox",
-                "--disable-setuid-sandbox",
-                "--disable-dev-shm-usage",
                 "--disable-infobars",
                 "--disable-extensions",
             ],
@@ -747,13 +748,10 @@ async def run_filler(test_limit: int = None, job_id: str = None, retry_skipped: 
                     except Exception:
                         pass
                     browser = await p.chromium.launch(
-                        headless=True,
+                        headless=_HEADLESS,
                         args=[
                             "--start-maximized",
                             "--disable-blink-features=AutomationControlled",
-                            "--no-sandbox",
-                            "--disable-setuid-sandbox",
-                            "--disable-dev-shm-usage",
                             "--disable-infobars",
                             "--disable-extensions",
                         ],

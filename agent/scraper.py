@@ -30,6 +30,8 @@ SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY")
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
+_HEADLESS = os.getenv("HEADLESS", "true").lower() != "false"
+
 COOKIES_FILE = os.path.join(os.path.dirname(__file__), "..", "linkedin_cookies.json")
 
 _shutdown = False
@@ -519,13 +521,10 @@ async def run_scraper(test_limit: int = None):
 
     async with async_playwright() as p:
         browser = await p.chromium.launch(
-            headless=True,
+            headless=_HEADLESS,
             slow_mo=150,
             args=[
                 "--disable-blink-features=AutomationControlled",
-                "--no-sandbox",
-                "--disable-setuid-sandbox",
-                "--disable-dev-shm-usage",
                 "--disable-infobars",
                 "--disable-extensions",
             ],
@@ -594,13 +593,10 @@ async def scrape_for_role(role: str, titles: list, test_limit: int = None) -> li
 
     async with async_playwright() as p:
         browser = await p.chromium.launch(
-            headless=True,
+            headless=_HEADLESS,
             slow_mo=150,
             args=[
                 "--disable-blink-features=AutomationControlled",
-                "--no-sandbox",
-                "--disable-setuid-sandbox",
-                "--disable-dev-shm-usage",
                 "--disable-infobars",
                 "--disable-extensions",
             ],
