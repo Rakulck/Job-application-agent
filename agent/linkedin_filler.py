@@ -47,16 +47,39 @@ async def _do_fresh_login(page, context):
     await page.wait_for_timeout(3000)
     print(f"[filler] login page loaded — url={page.url} title={await page.title()}")
 
-    # Wait for the email field — try both selectors with a generous timeout
-    email_sel = "#username"
-    pass_sel  = "#password"
+    # Dump page HTML so we can diagnose what LinkedIn is actually rendering
     try:
-        await page.wait_for_selector(email_sel, timeout=20_000)
-    except Exception:
-        print(f"[filler] #username not found — url={page.url}, trying fallback selector")
-        email_sel = "input[name='session_key']"
-        pass_sel  = "input[name='session_password']"
-        await page.wait_for_selector(email_sel, timeout=10_000)
+        html_snippet = (await page.content())[:3000]
+        print(f"[filler] page HTML snippet: {html_snippet}")
+    except Exception as e:
+        print(f"[filler] could not get page HTML: {e}")
+
+    # Take a screenshot for visual debugging
+    try:
+        await page.screenshot(path="/tmp/linkedin-login-debug.png", full_page=True)
+        print("[filler] screenshot saved to /tmp/linkedin-login-debug.png")
+    except Exception as e:
+        print(f"[filler] could not take screenshot: {e}")
+
+    # Wait for the email field — try multiple selectors
+    email_sel = None
+    pass_sel  = None
+    for e_sel, p_sel in [
+        ("#username",                   "#password"),
+        ("input[name='session_key']",   "input[name='session_password']"),
+        ("input[type='email']",         "input[type='password']"),
+        ("input[autocomplete='username']", "input[autocomplete='current-password']"),
+    ]:
+        try:
+            await page.wait_for_selector(e_sel, timeout=8_000)
+            email_sel = e_sel
+            pass_sel  = p_sel
+            print(f"[filler] found login form with selector: {e_sel}")
+            break
+        except Exception:
+            print(f"[filler] selector not found: {e_sel}")
+    if email_sel is None:
+        raise Exception(f"Login form not found — page url={page.url}")
     await page.fill(email_sel, LINKEDIN_EMAIL)
     await page.fill(pass_sel, LINKEDIN_PASSWORD)
     await page.click("button[type='submit']")
