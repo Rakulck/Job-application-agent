@@ -45,6 +45,7 @@ async def _do_fresh_login(page, context):
     print("[filler] logging in to LinkedIn...")
     await page.goto("https://www.linkedin.com/login", wait_until="domcontentloaded", timeout=30_000)
     await page.wait_for_timeout(3000)
+    print(f"[filler] login page loaded — url={page.url} title={await page.title()}")
 
     # Wait for the email field — try both selectors with a generous timeout
     email_sel = "#username"
@@ -52,6 +53,7 @@ async def _do_fresh_login(page, context):
     try:
         await page.wait_for_selector(email_sel, timeout=20_000)
     except Exception:
+        print(f"[filler] #username not found — url={page.url}, trying fallback selector")
         email_sel = "input[name='session_key']"
         pass_sel  = "input[name='session_password']"
         await page.wait_for_selector(email_sel, timeout=10_000)
@@ -670,7 +672,15 @@ async def run_filler(test_limit: int = None, job_id: str = None, retry_skipped: 
     async with async_playwright() as p:
         browser = await p.chromium.launch(
             headless=True,
-            args=["--start-maximized"],
+            args=[
+                "--start-maximized",
+                "--disable-blink-features=AutomationControlled",
+                "--no-sandbox",
+                "--disable-setuid-sandbox",
+                "--disable-dev-shm-usage",
+                "--disable-infobars",
+                "--disable-extensions",
+            ],
         )
         context = await browser.new_context(
             user_agent=(
@@ -713,12 +723,23 @@ async def run_filler(test_limit: int = None, job_id: str = None, retry_skipped: 
                         await browser.close()
                     except Exception:
                         pass
-                    browser = await p.chromium.launch(headless=True)
+                    browser = await p.chromium.launch(
+                        headless=True,
+                        args=[
+                            "--start-maximized",
+                            "--disable-blink-features=AutomationControlled",
+                            "--no-sandbox",
+                            "--disable-setuid-sandbox",
+                            "--disable-dev-shm-usage",
+                            "--disable-infobars",
+                            "--disable-extensions",
+                        ],
+                    )
                     context = await browser.new_context(
                         user_agent=(
                             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
                             "AppleWebKit/537.36 (KHTML, like Gecko) "
-                            "Chrome/122.0.0.0 Safari/537.36"
+                            "Chrome/124.0.0.0 Safari/537.36"
                         )
                     )
                     page = await context.new_page()
