@@ -7,12 +7,16 @@ Usage:
 """
 
 import asyncio
+import os
 import signal
 import sys
+import threading
 from datetime import datetime
 
 from apscheduler.schedulers.blocking import BlockingScheduler
 from apscheduler.triggers.interval import IntervalTrigger
+from dotenv import load_dotenv
+from supabase import create_client
 
 from agent.scraper import scrape_for_role
 from agent.tailor import run_tailor
@@ -20,6 +24,10 @@ from agent.resume_builder import run_builder
 from agent.linkedin_filler import run_filler
 from config.settings import ROLE_KEYWORDS, load_job_titles
 
+load_dotenv()
+
+_supabase = create_client(os.getenv("SUPABASE_URL"), os.getenv("SUPABASE_KEY"))
+_pipeline_lock = threading.Lock()  # prevents overlapping runs
 _shutdown = False
 
 
@@ -99,6 +107,16 @@ async def _scrape_all_roles(role_groups: dict) -> dict:
 # ---------------------------------------------------------------------------
 
 def run_pipeline():
+    if not _pipeline_lock.acquire(blocking=False):
+        print("[scheduler] pipeline already running — skipping")
+        return
+    try:
+        _run_pipeline_inner()
+    finally:
+        _pipeline_lock.release()
+
+
+def _run_pipeline_inner():
     start = datetime.now()
     print(f"\n[scheduler] === pipeline started at {start.strftime('%Y-%m-%d %H:%M:%S')} ===")
 
@@ -152,8 +170,23 @@ def run_pipeline():
     print(f"[scheduler] === pipeline complete in {mins}m {secs}s ===\n")
 
 
+def check_dashboard_trigger():
+    """Poll Supabase every 15s. If dashboard set pipeline_trigger=true, run pipeline."""
+    if _pipeline_lock.locked():
+        return  # pipeline already running — ignore
+    try:
+        row = _supabase.table("profile").select("pipeline_trigger").eq("id", 1).single().execute()
+        if row.data and row.data.get("pipeline_trigger"):
+            # Reset the flag immediately so double-clicks don't queue twice
+            _supabase.table("profile").update({"pipeline_trigger": False}).eq("id", 1).execute()
+            print("[scheduler] dashboard trigger received — starting pipeline...")
+            threading.Thread(target=run_pipeline, daemon=True).start()
+    except Exception as e:
+        print(f"[scheduler] trigger poll error: {e}")
+
+
 if __name__ == "__main__":
-    print("[scheduler] starting — pipeline runs every 60 minutes")
+    print("[scheduler] starting — pipeline runs every 60 minutes, polls dashboard trigger every 15s")
     print("[scheduler] running first cycle immediately...")
 
     run_pipeline()
@@ -164,11 +197,19 @@ if __name__ == "__main__":
         trigger=IntervalTrigger(minutes=60),
         id="pipeline",
         name="Full job application pipeline",
-        max_instances=1,   # never overlap runs
-        coalesce=True,     # skip missed runs if still running
+        max_instances=1,
+        coalesce=True,
+    )
+    scheduler.add_job(
+        check_dashboard_trigger,
+        trigger=IntervalTrigger(seconds=15),
+        id="trigger_poll",
+        name="Dashboard trigger poll",
+        max_instances=1,
+        coalesce=True,
     )
 
-    print("[scheduler] next run in 60 minutes. Press Ctrl+C to stop.")
+    print("[scheduler] next scheduled run in 60 minutes. Press Ctrl+C to stop.")
     try:
         scheduler.start()
     except (KeyboardInterrupt, SystemExit):
