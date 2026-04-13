@@ -150,7 +150,7 @@ async def download_pdf(pdf_url: str) -> str:
 @dataclass
 class UnknownQuestion:
     label: str
-    field_type: str        # 'text' | 'select' | 'radio'
+    field_type: str        # 'text' | 'select' | 'radio' | 'number' | 'email' | 'tel'
     options: list[str]     # empty for text fields
 
 
@@ -195,10 +195,9 @@ async def _save_cached_answer(question_label: str, field_type: str, answer: str,
             "field_type": field_type,
             "options": options or [],
             "answer": answer
-        }).execute()
-        print(f"[filler] cached answer for '{question_label}': {answer[:50]}...")
-    except Exception as e:
-        print(f"[filler] failed to cache '{question_label}': {e}")
+        }, on_conflict="question_label", ignore_duplicates=True).execute()
+    except Exception:
+        pass  # already cached = already correct, silently skip
 
 
 async def _find_answer(label: str, answers: dict) -> tuple[str, bool]:
@@ -221,7 +220,7 @@ async def _find_answer(label: str, answers: dict) -> tuple[str, bool]:
     return DEFAULT_ANSWER, False
 
 
-async def fill_text_field(page, field, label: str, answers: dict, job_title: str = "") -> "UnknownQuestion | None":
+async def fill_text_field(page, field, label: str, answers: dict, job_title: str = "", input_type: str = "text") -> "UnknownQuestion | None":
     """Clear and fill a text input. Returns UnknownQuestion if label not recognised."""
     # Auto-fill position fields with the job title being applied for
     if "position" in label.lower() and job_title:
@@ -230,18 +229,32 @@ async def fill_text_field(page, field, label: str, answers: dict, job_title: str
     else:
         value, matched = await _find_answer(label, answers)
 
+    if not matched:
+        return UnknownQuestion(label=label, field_type=input_type, options=[])
+
+    # Click with short timeout; fall back to force-click if a typeahead overlay is blocking
     try:
-        await field.click()
+        await field.click(timeout=3000)
+    except Exception:
+        try:
+            await field.click(force=True, timeout=2000)
+        except Exception as e:
+            print(f"[filler] text fill error ({label}): {e}")
+            return None
+    try:
         await field.select_text()
         await field.fill(value)
+        # Dismiss any autocomplete/typeahead that opened (would block next field's click)
+        await field.press("Escape")
+        await page.wait_for_timeout(150)
     except Exception as e:
         print(f"[filler] text fill error ({label}): {e}")
 
     # Save to cache if we matched an answer from screening_answers (learning)
-    if matched and value not in [DEFAULT_ANSWER]:
+    if value not in [DEFAULT_ANSWER]:
         await _save_cached_answer(label, "text", value, [])
 
-    return None if matched else UnknownQuestion(label=label, field_type="text", options=[])
+    return None
 
 
 async def fill_select(page, field, label: str, answers: dict) -> "UnknownQuestion | None":
@@ -250,19 +263,26 @@ async def fill_select(page, field, label: str, answers: dict) -> "UnknownQuestio
     options = []
     try:
         options = await field.evaluate("el => Array.from(el.options).map(o => o.text)")
+    except Exception as e:
+        print(f"[filler] select options extract error ({label}): {e}")
+
+    if not matched:
+        return UnknownQuestion(label=label, field_type="select", options=options)
+
+    try:
         best = next(
             (o for o in options if answer.lower() in o.lower()),
             next((o for o in options if "yes" in o.lower()), options[1] if len(options) > 1 else options[0])
         )
-        await field.select_option(label=best)
+        await field.select_option(label=best, timeout=3000)
     except Exception as e:
         print(f"[filler] select error ({label}): {e}")
 
     # Save to cache if we matched an answer from screening_answers (learning)
-    if matched and answer not in [DEFAULT_ANSWER]:
+    if answer not in [DEFAULT_ANSWER]:
         await _save_cached_answer(label, "select", answer, options)
 
-    return None if matched else UnknownQuestion(label=label, field_type="select", options=options)
+    return None
 
 
 async def fill_radio(page, group_label: str, options, answers: dict) -> "UnknownQuestion | None":
@@ -271,57 +291,99 @@ async def fill_radio(page, group_label: str, options, answers: dict) -> "Unknown
     option_texts = []
     try:
         for opt in options:
-            text = await opt.evaluate("el => el.closest('label')?.innerText || ''")
+            text = await opt.evaluate("""el => {
+                const id = el.id;
+                if (id) {
+                    const lbl = document.querySelector('label[for="' + id + '"]');
+                    if (lbl) return lbl.innerText.trim();
+                }
+                const sib = el.nextElementSibling;
+                if (sib && sib.tagName === 'LABEL') return sib.innerText.trim();
+                const parentLbl = el.closest('label');
+                if (parentLbl) return parentLbl.innerText.trim();
+                return el.getAttribute('value') || '';
+            }""")
             option_texts.append(text)
+    except Exception as e:
+        print(f"[filler] radio extract error ({group_label}): {e}")
+
+    if not matched:
+        return UnknownQuestion(label=group_label, field_type="radio", options=option_texts)
+
+    try:
+        for i, opt in enumerate(options):
+            text = option_texts[i]
             if answer.lower() in text.lower():
-                await opt.click()
-                matched = True   # answer found in option text — not unknown
+                await opt.evaluate("""el => {
+                    const id = el.id;
+                    const lbl = id ? document.querySelector('label[for="' + id + '"]') : null;
+                    if (lbl) lbl.click(); else el.click();
+                }""")
                 break
         else:
-            # Fallback: click first option
+            # Fallback: answer was "Yes" (default) but not explicitly matched
             if options:
-                await options[0].click()
+                await options[0].evaluate("""el => {
+                    const id = el.id;
+                    const lbl = id ? document.querySelector('label[for="' + id + '"]') : null;
+                    if (lbl) lbl.click(); else el.click();
+                }""")
     except Exception as e:
-        print(f"[filler] radio error ({group_label}): {e}")
+        print(f"[filler] radio click error ({group_label}): {e}")
 
     # Save to cache if we matched an answer from screening_answers (learning)
-    if matched and answer not in [DEFAULT_ANSWER]:
+    if answer not in [DEFAULT_ANSWER]:
         await _save_cached_answer(group_label, "radio", answer, option_texts)
 
-    return None if matched else UnknownQuestion(label=group_label, field_type="radio", options=option_texts)
+    return None
 
 
 # ---------------------------------------------------------------------------
 # Modal step filler
 # ---------------------------------------------------------------------------
 
+def _clean_label(raw: str) -> str:
+    """Return the first non-empty line, stripped. Fixes LinkedIn's doubled label text."""
+    lines = [l.strip() for l in raw.splitlines() if l.strip()]
+    return lines[0] if lines else raw.strip()
+
+
 async def fill_modal_step(page, pdf_path: str, answers: dict, job_title: str = "") -> list[UnknownQuestion]:
     """Fill all visible fields in the current Easy Apply modal step. Returns list of unrecognised questions."""
     unknown_questions: list[UnknownQuestion] = []
 
     # Scope all selectors strictly to the Easy Apply modal — never fall back to full page
-    modal = None
-    for sel in [
-        "[data-test-modal-id='easy-apply-modal']",
-        ".jobs-easy-apply-modal",
-        ".jobs-easy-apply-content",
-        "div[aria-label*='Easy Apply']",
-        "[role='dialog']",
-        ".artdeco-modal--layer-confirmation .artdeco-modal__content",
-        ".artdeco-modal__content",
-        ".artdeco-modal",
-    ]:
-        loc = page.locator(sel)
-        if await loc.count() > 0:
-            modal = loc.first
-            break
+    modal = page.locator(".jobs-easy-apply-modal, [data-test-modal-id='easy-apply-modal']").first
 
-    if modal is None:
+    if await modal.count() == 0:
         print("[filler] WARNING: Easy Apply modal not found — skipping field fill")
         return []
 
-    # Upload resume if file input is visible
-    file_inputs = modal.locator("input[type='file']")
+    # --- Resume upload ---
+    # LinkedIn Easy Apply often hides the file input behind an "Upload resume" button
+    # (when the user already has a saved resume on their profile). Click that button
+    # first so the hidden input becomes active, then set_input_files on it.
+    UPLOAD_TRIGGER_SELS = [
+        "button:has-text('Upload resume')",
+        "button:has-text('Change')",
+        "label:has-text('Upload resume')",
+        "[aria-label*='upload' i]",
+        ".jobs-resume-picker__upload-label",
+        "button:has-text('Choose')",
+    ]
+    for sel in UPLOAD_TRIGGER_SELS:
+        try:
+            btn = modal.locator(sel)
+            if await btn.count() > 0:
+                await btn.first.click(timeout=2000)
+                await page.wait_for_timeout(1000)
+                print(f"[filler] clicked resume trigger: {sel}")
+                break
+        except Exception:
+            pass
+
+    # Now try to upload — Playwright's set_input_files works on hidden inputs too
+    file_inputs = page.locator("input[type='file']")   # broader scope: whole page
     if await file_inputs.count() > 0:
         try:
             await file_inputs.first.set_input_files(pdf_path)
@@ -329,6 +391,8 @@ async def fill_modal_step(page, pdf_path: str, answers: dict, job_title: str = "
             await page.wait_for_timeout(1500)
         except Exception as e:
             print(f"[filler] resume upload error: {e}")
+    else:
+        print("[filler] WARNING: no file input found — resume may not be uploaded")
 
     # Text inputs
     inputs = modal.locator("input[type='text'], input[type='tel'], input[type='email'], input[type='number']")
@@ -337,13 +401,14 @@ async def fill_modal_step(page, pdf_path: str, answers: dict, job_title: str = "
         inp = inputs.nth(i)
         try:
             inp_id = await inp.get_attribute("id") or ""
+            inp_type = await inp.get_attribute("type") or "text"
             label_el = modal.locator(f"label[for='{inp_id}']")
-            label = await label_el.first.inner_text() if await label_el.count() > 0 else ""
+            label = _clean_label(await label_el.first.inner_text()) if await label_el.count() > 0 else ""
             if not label:
                 label = await inp.get_attribute("placeholder") or ""
             val = await inp.input_value()
             if not val.strip():
-                result = await fill_text_field(page, inp, label, answers, job_title)
+                result = await fill_text_field(page, inp, label, answers, job_title, input_type=inp_type)
                 if result:
                     unknown_questions.append(result)
         except Exception as e:
@@ -357,7 +422,7 @@ async def fill_modal_step(page, pdf_path: str, answers: dict, job_title: str = "
         try:
             sel_id = await sel.get_attribute("id") or ""
             label_el = modal.locator(f"label[for='{sel_id}']")
-            label = await label_el.first.inner_text() if await label_el.count() > 0 else ""
+            label = _clean_label(await label_el.first.inner_text()) if await label_el.count() > 0 else ""
             result = await fill_select(page, sel, label, answers)
             if result:
                 unknown_questions.append(result)
@@ -377,7 +442,7 @@ async def fill_modal_step(page, pdf_path: str, answers: dict, job_title: str = "
             processed_names.add(name)
             group = modal.locator(f"input[type='radio'][name='{name}']")
             legend = modal.locator(f"fieldset:has(input[name='{name}']) legend")
-            label = await legend.first.inner_text() if await legend.count() > 0 else name
+            label = _clean_label(await legend.first.inner_text()) if await legend.count() > 0 else name
             group_items = [group.nth(j) for j in range(await group.count())]
             result = await fill_radio(page, label, group_items, answers)
             if result:
@@ -451,7 +516,7 @@ async def apply_to_job(page, job: dict, resume_row: dict, answers: dict) -> tupl
             ".jobs-search__job-details, "
             ".jobs-details"
         )
-        panel = detail_panel.first if await detail_panel.count() > 0 else page
+        panel = detail_panel.first if await detail_panel.count() > 0 else page.locator("body")
         panel_text = (await panel.inner_text()).lower()
         if "no longer accepting" in panel_text:
             print(f"[filler] no longer accepting — skipping {url}")
@@ -492,6 +557,12 @@ async def apply_to_job(page, job: dict, resume_row: dict, answers: dict) -> tupl
             await apply_btn.first.scroll_into_view_if_needed(timeout=5000)
         except Exception:
             pass
+        # JS scroll as extra fallback for viewport issues
+        try:
+            await apply_btn.first.evaluate("el => el.scrollIntoView({block: 'center'})")
+            await page.wait_for_timeout(300)
+        except Exception:
+            pass
         await page.wait_for_timeout(500)
         try:
             await apply_btn.first.click(timeout=10000)
@@ -501,10 +572,16 @@ async def apply_to_job(page, job: dict, resume_row: dict, answers: dict) -> tupl
             try:
                 await apply_btn.first.click(force=True, timeout=5000)
             except Exception as ce:
-                print(f"[filler] force click also failed: {ce}")
-                return "failed", f"click failed: {str(ce)[:100]}", []
+                # JS click as last resort
+                print(f"[filler] force click also failed — trying JS click")
+                try:
+                    await apply_btn.first.evaluate("el => el.click()")
+                    await page.wait_for_timeout(1000)
+                except Exception as je:
+                    print(f"[filler] JS click also failed: {je}")
+                    return "failed", f"click failed: {str(ce)[:100]}", []
 
-        # Wait for modal to open
+        # Wait for Easy Apply modal to open
         MODAL_SELS = (
             "[data-test-modal-id='easy-apply-modal'], "
             ".jobs-easy-apply-modal, "
@@ -512,11 +589,21 @@ async def apply_to_job(page, job: dict, resume_row: dict, answers: dict) -> tupl
             "div[aria-label*='Easy Apply'], "
             "[role='dialog']"
         )
+        modal_appeared = True
         try:
             await page.wait_for_selector(MODAL_SELS, timeout=20_000)
         except Exception:
-            print(f"[filler] modal selector timed out — continuing anyway")
-        await page.wait_for_timeout(1000)
+            modal_appeared = False
+
+        if not modal_appeared:
+            # If we left LinkedIn, this was an external apply redirect
+            if "linkedin.com" not in page.url:
+                print(f"[filler] redirected off LinkedIn — external apply job, skipping")
+                return "skipped", "external apply (redirected off LinkedIn)", []
+            print(f"[filler] Easy Apply modal did not open — skipping")
+            return "skipped", "easy apply modal did not open", []
+
+        await page.wait_for_timeout(2000)  # Extended wait for modal to fully render
 
         # Multi-step modal loop
         all_unknown: list[UnknownQuestion] = []
@@ -550,9 +637,15 @@ async def apply_to_job(page, job: dict, resume_row: dict, answers: dict) -> tupl
                     await page.wait_for_timeout(500)
                 except Exception:
                     pass
-                await submit_btn.first.scroll_into_view_if_needed()
+                try:
+                    await submit_btn.first.scroll_into_view_if_needed(timeout=5000)
+                except Exception:
+                    pass
                 await page.wait_for_timeout(500)
-                await submit_btn.first.click()
+                try:
+                    await submit_btn.first.click(timeout=8000)
+                except Exception:
+                    await submit_btn.first.evaluate("el => el.click()")
                 await page.wait_for_timeout(3000)
                 print(f"[filler] submitted application for {job_id}")
                 return "applied", "", all_unknown
@@ -567,28 +660,117 @@ async def apply_to_job(page, job: dict, resume_row: dict, answers: dict) -> tupl
             except Exception:
                 pass
 
-            # Try Next / Review / Continue
+            # Brief wait for buttons to render before searching
+            try:
+                await page.wait_for_selector(
+                    "button[aria-label*='Next'], button[aria-label*='Continue'], "
+                    "button[aria-label*='Review'], button[aria-label='Submit application'], "
+                    ".jobs-easy-apply-modal .artdeco-button--primary, "
+                    "[role='dialog'] .artdeco-button--primary",
+                    timeout=3000
+                )
+            except Exception:
+                pass  # continue to try clicking anyway
+
+            # Try Next / Review / Continue — broad selectors (LinkedIn labels change)
+            nav_clicked = False
+
             next_btn = page.locator(
                 "button[aria-label='Continue to next step'], "
                 "button[aria-label='Review your application'], "
-                "button[aria-label='Next']"
+                "button[aria-label='Next'], "
+                "button[aria-label='Continue'], "
+                "button[aria-label='Save and continue']"
             )
             if await next_btn.count() > 0:
-                await next_btn.first.scroll_into_view_if_needed()
-                await next_btn.first.click()
-                await page.wait_for_timeout(1500)
+                try:
+                    await next_btn.first.scroll_into_view_if_needed(timeout=5000)
+                except Exception:
+                    pass
+                try:
+                    await next_btn.first.click(timeout=8000)
+                    await page.wait_for_timeout(1500)
+                    nav_clicked = True
+                except Exception:
+                    pass
+
+            # Text-based fallbacks
+            if not nav_clicked:
+                for btn_text in ("Review", "Next", "Continue"):
+                    text_btn = page.locator(f"button:has-text('{btn_text}')")
+                    if await text_btn.count() > 0:
+                        try:
+                            await text_btn.first.scroll_into_view_if_needed(timeout=5000)
+                        except Exception:
+                            pass
+                        try:
+                            await text_btn.first.click(timeout=8000)
+                            await page.wait_for_timeout(1500)
+                            nav_clicked = True
+                        except Exception:
+                            pass
+                        break
+
+            # CSS primary button fallback
+            if not nav_clicked:
+                footer_primary = page.locator(
+                    ".jobs-easy-apply-modal footer .artdeco-button--primary, "
+                    "[role='dialog'] footer .artdeco-button--primary, "
+                    ".jobs-easy-apply-modal .artdeco-button--primary, "
+                    "[role='dialog'] .artdeco-button--primary"
+                )
+                if await footer_primary.count() > 0:
+                    try:
+                        btn_label = await footer_primary.first.get_attribute("aria-label") or await footer_primary.first.inner_text()
+                        print(f"[filler] using primary button fallback: '{btn_label.strip()}'")
+                    except Exception:
+                        pass
+                    try:
+                        await footer_primary.first.scroll_into_view_if_needed(timeout=5000)
+                    except Exception:
+                        pass
+                    try:
+                        await footer_primary.first.click(timeout=8000)
+                        await page.wait_for_timeout(1500)
+                        nav_clicked = True
+                    except Exception:
+                        pass
+
+            # JS click as last resort — bypasses all Playwright selector/state checks
+            if not nav_clicked:
+                try:
+                    clicked = await page.evaluate("""() => {
+                        const modal = document.querySelector(
+                            '.jobs-easy-apply-modal, [data-test-modal-id="easy-apply-modal"], [role="dialog"]'
+                        );
+                        if (!modal) return null;
+                        const btn = modal.querySelector(
+                            '.artdeco-button--primary:not([disabled]):not(.artdeco-button--disabled)'
+                        );
+                        if (!btn) return null;
+                        btn.click();
+                        return (btn.getAttribute('aria-label') || btn.innerText || 'unknown').trim().slice(0, 60);
+                    }""")
+                    if clicked:
+                        print(f"[filler] JS click fallback succeeded: '{clicked}'")
+                        await page.wait_for_timeout(1500)
+                        nav_clicked = True
+                except Exception as e:
+                    print(f"[filler] JS click fallback error: {e}")
+
+            if nav_clicked:
                 continue
 
-            # Try "Review" as text
-            review_btn = page.locator("button:has-text('Review')")
-            if await review_btn.count() > 0:
-                await review_btn.first.scroll_into_view_if_needed()
-                await review_btn.first.click()
-                await page.wait_for_timeout(1500)
-                continue
-
-            # If no button found — bail
-            print(f"[filler] no navigation button found at step {step}")
+            # Nothing found — log visible buttons for diagnosis then bail
+            try:
+                btns = await page.evaluate("""() =>
+                    Array.from(document.querySelectorAll('button')).slice(0, 20).map(b =>
+                        (b.getAttribute('aria-label') || b.innerText || '').trim().slice(0, 60)
+                    ).filter(Boolean)
+                """)
+                print(f"[filler] no navigation button at step {step} — visible buttons: {btns}")
+            except Exception:
+                print(f"[filler] no navigation button found at step {step}")
             break
 
         return "failed", "no navigation button found", all_unknown
