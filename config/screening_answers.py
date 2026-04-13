@@ -23,6 +23,11 @@ ANSWERS = {
     "ethnicity": "Asian",
     "veteran_status": "I am not a veteran",
     "disability_status": "No, I don't have a disability",
+    "address_line_1": "",
+    "address_line_2": "",
+    "city": "",
+    "state": "",
+    "zip_code": "",
 }
 
 DEFAULT_ANSWER = "Yes"
@@ -49,6 +54,11 @@ def load_answers() -> dict:
             "phone": "phone",
             "linkedin": "linkedin",
             "portfolio": "website",
+            "address_line_1": "address_line_1",
+            "address_line_2": "address_line_2",
+            "city": "city",
+            "state": "state",
+            "zip_code": "zip_code",
         }
         for src, dst in field_map.items():
             if personal.get(src):

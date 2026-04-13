@@ -11,6 +11,11 @@ const DEFAULT_PERSONAL: Record<string, string> = {
   portfolio: "rakulck31.vercel.app/",
   github: "github.com/Rakulck",
   location: "Seattle, WA",
+  address_line_1: "",
+  address_line_2: "",
+  city: "",
+  state: "",
+  zip_code: "",
 };
 
 const DEFAULT_SCREENING: Record<string, string> = {
@@ -53,6 +58,11 @@ const PERSONAL_FIELDS = [
   { key: "portfolio", label: "Portfolio URL" },
   { key: "github", label: "GitHub URL" },
   { key: "location", label: "Location" },
+  { key: "address_line_1", label: "Address Line 1" },
+  { key: "address_line_2", label: "Address Line 2" },
+  { key: "city", label: "City" },
+  { key: "state", label: "State" },
+  { key: "zip_code", label: "ZIP Code" },
 ];
 
 const SCREENING_FIELDS = [
