@@ -1,4 +1,5 @@
 import os
+import re
 import json
 import tempfile
 from io import BytesIO
@@ -23,6 +24,145 @@ supabase_admin   = create_client(SUPABASE_URL, SUPABASE_SERVICE_KEY)  # bypasses
 
 OUTPUT_DIR = os.path.join(os.path.dirname(__file__), "..", "output")
 os.makedirs(OUTPUT_DIR, exist_ok=True)
+
+RESUMES_DIR = os.path.join(os.path.dirname(__file__), "..", "resumes")
+
+# ---------------------------------------------------------------------------
+# Location mapping — snap job location to nearest preferred city
+# ---------------------------------------------------------------------------
+
+PREFERRED_CITIES = [
+    ("Seattle, WA",       47.6062, -122.3321),
+    ("San Francisco, CA", 37.7749, -122.4194),
+    ("Washington, DC",    38.9072,  -77.0369),
+    ("New York, NY",      40.7128,  -74.0060),
+    ("Dallas, TX",        32.7767,  -96.7970),
+    ("Houston, TX",       29.7604,  -95.3698),
+    ("Herndon, VA",       38.9696,  -77.3861),
+]
+
+# Keyword → preferred city (checked in order; first match wins)
+LOCATION_KEYWORDS = {
+    # Seattle metro
+    "seattle":        "Seattle, WA",
+    "bellevue":       "Seattle, WA",
+    "redmond":        "Seattle, WA",
+    "tacoma":         "Seattle, WA",
+    "kirkland":       "Seattle, WA",
+    "bothell":        "Seattle, WA",
+    # SF / Bay Area
+    "san francisco":  "San Francisco, CA",
+    "bay area":       "San Francisco, CA",
+    "san jose":       "San Francisco, CA",
+    "oakland":        "San Francisco, CA",
+    "palo alto":      "San Francisco, CA",
+    "mountain view":  "San Francisco, CA",
+    "sunnyvale":      "San Francisco, CA",
+    "santa clara":    "San Francisco, CA",
+    "silicon valley": "San Francisco, CA",
+    # Herndon / NoVA (before generic DC so these win)
+    "herndon":        "Herndon, VA",
+    "reston":         "Herndon, VA",
+    "mclean":         "Herndon, VA",
+    "fairfax":        "Herndon, VA",
+    "arlington":      "Herndon, VA",
+    "tysons":         "Herndon, VA",
+    "chantilly":      "Herndon, VA",
+    "ashburn":        "Herndon, VA",
+    # DC metro
+    "washington, dc": "Washington, DC",
+    "washington dc":  "Washington, DC",
+    ", dc":           "Washington, DC",
+    "maryland":       "Washington, DC",
+    "bethesda":       "Washington, DC",
+    "silver spring":  "Washington, DC",
+    # NYC metro
+    "new york":       "New York, NY",
+    "nyc":            "New York, NY",
+    "brooklyn":       "New York, NY",
+    "manhattan":      "New York, NY",
+    "queens":         "New York, NY",
+    "jersey city":    "New York, NY",
+    "hoboken":        "New York, NY",
+    "newark":         "New York, NY",
+    # Dallas metro
+    "dallas":         "Dallas, TX",
+    "fort worth":     "Dallas, TX",
+    "plano":          "Dallas, TX",
+    "irving":         "Dallas, TX",
+    "frisco":         "Dallas, TX",
+    "richardson":     "Dallas, TX",
+    # Houston metro
+    "houston":        "Houston, TX",
+    "sugar land":     "Houston, TX",
+    "the woodlands":  "Houston, TX",
+    "katy":           "Houston, TX",
+}
+
+_REMOTE_SIGNALS = {"remote", "united states", "us", "anywhere", "nationwide", ""}
+
+
+def _haversine(lat1, lon1, lat2, lon2):
+    import math
+    R = 3958.8  # miles
+    dlat = math.radians(lat2 - lat1)
+    dlon = math.radians(lon2 - lon1)
+    a = math.sin(dlat/2)**2 + math.cos(math.radians(lat1)) * math.cos(math.radians(lat2)) * math.sin(dlon/2)**2
+    return R * 2 * math.asin(math.sqrt(a))
+
+
+def map_to_preferred_location(job_location: str) -> str:
+    """Snap job_location string to the nearest city in PREFERRED_CITIES."""
+    loc = (job_location or "").strip().lower()
+
+    # Remote / empty → default
+    if loc in _REMOTE_SIGNALS or "remote" in loc:
+        return "Seattle, WA"
+
+    # Keyword match (fast path, no network)
+    for keyword, city in LOCATION_KEYWORDS.items():
+        if keyword in loc:
+            return city
+
+    # Geocode fallback
+    try:
+        from geopy.geocoders import Nominatim
+        from geopy.exc import GeocoderTimedOut
+        geolocator = Nominatim(user_agent="job_application_agent", timeout=5)
+        geo = geolocator.geocode(job_location)
+        if geo:
+            nearest = min(PREFERRED_CITIES, key=lambda c: _haversine(geo.latitude, geo.longitude, c[1], c[2]))
+            return nearest[0]
+    except Exception:
+        pass
+
+    return "Seattle, WA"
+
+
+# ---------------------------------------------------------------------------
+# Load base resume
+# ---------------------------------------------------------------------------
+
+def load_base_resume() -> dict:
+    """Load the resume JSON for the given role from Supabase profile.
+    Checks profile.role_resumes[role] first, then profile.base_resume.
+    Overlays personal_info fields on top.
+    Raises if nothing is found in Supabase."""
+    row = supabase.table("profile").select("base_resume, role_resumes, personal_info").eq("id", 1).single().execute()
+    role_resumes = row.data.get("role_resumes") or {}
+    personal = row.data.get("personal_info") or {}
+
+    if not role_resumes.get("software_developer"):
+        raise ValueError("No 'software_developer' resume found in Supabase profile — upload one via the dashboard")
+    base = role_resumes["software_developer"]
+    print(f"[builder] using software_developer resume from Supabase profile")
+
+    # Overlay personal_info fields
+    for field in ["name", "email", "phone", "linkedin", "portfolio", "github", "location"]:
+        if personal.get(field):
+            base[field] = personal[field]
+
+    return base
 
 # ---------------------------------------------------------------------------
 # Colours / fonts (hardcoded — Groq never touches these)
@@ -194,11 +334,9 @@ def _section_heading(doc, title: str):
     return p
 
 
-MAX_EXPERIENCE_ENTRIES = 3   # hard cap — keeps resume to one page
-MAX_BULLETS_PER_JOB   = 3   # hard cap — keeps resume to one page
 
 
-def build_docx(data: dict) -> str:
+def build_docx(data: dict, company: str = "") -> str:
     """Build a .docx resume from tailored JSON. Returns file path."""
     doc = Document()
 
@@ -259,7 +397,7 @@ def build_docx(data: dict) -> str:
             _add_run(p, f"\t{',  '.join(items)}", bold=False, font_size=FS_BODY)
 
     # ---- Professional Experience ----
-    experience = data.get("experience", [])[:MAX_EXPERIENCE_ENTRIES]
+    experience = data.get("experience", [])
     if experience:
         _section_heading(doc, "Professional Experience")
         for exp in experience:
@@ -280,8 +418,7 @@ def build_docx(data: dict) -> str:
             r.font.size = Pt(FS_EXP_CO)
             r.font.name = FONT_MAIN
 
-            # Bullets: List Paragraph, 10.5pt, justified (capped for one-page)
-            for bullet in exp.get("bullets", [])[:MAX_BULLETS_PER_JOB]:
+            for bullet in exp.get("bullets", []):
                 bp = doc.add_paragraph(style="List Bullet")
                 bp.alignment = JUSTIFY
                 bp.paragraph_format.space_before = Pt(0)
@@ -303,16 +440,19 @@ def build_docx(data: dict) -> str:
                 rest += f",  {edu.get('graduation', '')}"
             _add_run(p, rest, bold=False, font_size=FS_BODY)
 
-    # Filename: Rakul_C_Kandavel.pdf
-    name_parts   = data.get("name", "resume").split()
+    # Filename: rakul_CK-CompanyName
+    name_parts = data.get("name", "resume").split()
+    first = name_parts[0].lower() if name_parts else "resume"
     if len(name_parts) >= 3:
-        # Has middle name/initial: First Middle Last
-        slug = f"{name_parts[0]}_{name_parts[1][0]}_{name_parts[-1]}"
+        initials = f"{name_parts[1][0].upper()}{name_parts[-1][0].upper()}"
     elif len(name_parts) == 2:
-        # Only first and last name
-        slug = f"{name_parts[0]}_{name_parts[1]}"
+        initials = name_parts[-1][0].upper()
     else:
-        slug = name_parts[0] if name_parts else "resume"
+        initials = ""
+
+    company_slug = re.sub(r"[^A-Za-z0-9]+", "_", company).strip("_") if company else "unknown"
+    name_part = f"{first}_{initials}" if initials else first
+    slug = f"{name_part}-{company_slug}"
 
     path = os.path.join(OUTPUT_DIR, f"{slug}.docx")
     doc.save(path)
@@ -361,37 +501,110 @@ def upload_pdf(pdf_path: str, job_id: str) -> str:
 # ===========================================================================
 
 def run_builder(job_id: str = None, force: bool = False):
-    """Build PDFs for resumes. force=True rebuilds even if pdf_url already set."""
-    if job_id:
-        rows = supabase.table("resumes").select("*").eq("job_id", job_id).execute().data
-    else:
-        all_rows = supabase.table("resumes").select("*").execute().data
-        rows = all_rows if force else [r for r in all_rows if not r.get("pdf_url")]
+    """Build PDFs for resumes (merged tailor + build step).
 
-    if not rows:
-        print("[builder] nothing to build")
+    If force=False (default):
+      - Find pending jobs (no resumes row + not rejected)
+      - Load profile resume for each, build PDF, INSERT into resumes table
+    If force=True:
+      - Re-process all existing resumes rows (for rebuilds)
+    """
+
+    if force:
+        # Rebuild mode: re-process existing resumes rows
+        if job_id:
+            rows = supabase.table("resumes").select("*").eq("job_id", job_id).execute().data
+        else:
+            rows = supabase.table("resumes").select("*").execute().data
+
+        if not rows:
+            print("[builder] nothing to rebuild")
+            return
+
+        print(f"[builder] rebuilding {len(rows)} resumes (force mode)")
+
+        # Pre-fetch job data
+        job_data = {
+            r["job_id"]: {"company": r.get("company", ""), "title": r.get("title", "")}
+            for r in supabase.table("jobs").select("job_id, company, title").execute().data
+        }
+
+        for row in rows:
+            jid = row["job_id"]
+            tailored = row["tailored_json"]
+            company = job_data.get(jid, {}).get("company", "")
+            print(f"[builder] rebuilding job_id: {jid} ({company})")
+
+            try:
+                docx_path = build_docx(tailored, company=company)
+                pdf_path = build_pdf(tailored, docx_path)
+                url = upload_pdf(pdf_path, jid)
+
+                supabase.table("resumes").update({"pdf_url": url}).eq("id", row["id"]).execute()
+                print(f"[builder] rebuild done: {jid}")
+
+            except Exception as e:
+                print(f"[builder] rebuild error for {jid}: {e}")
+
+        print("[builder] rebuild complete")
         return
 
-    print(f"[builder] building {len(rows)} resumes")
+    # ─────────────────────────────────────────────────────────────────
+    # Normal mode: Process pending jobs (merged tailor + build)
+    # ─────────────────────────────────────────────────────────────────
 
-    # Pre-fetch all job data (company and title) in one query
-    job_data = {
-        r["job_id"]: {"company": r.get("company", ""), "title": r.get("title", "")}
-        for r in supabase.table("jobs").select("job_id, company, title").execute().data
-    }
+    if job_id:
+        # Single job mode
+        resp = supabase.table("jobs").select("*").eq("job_id", job_id).execute()
+        jobs = resp.data
+    else:
+        # Find all pending jobs (no resumes row, not rejected)
+        all_jobs = supabase.table("jobs").select("*").order("created_at", desc=True).execute().data
+        tailored_ids = {
+            r["job_id"]
+            for r in supabase.table("resumes").select("job_id").execute().data
+        }
+        # Also skip jobs already marked rejected in applications table
+        rejected_ids = {
+            r["job_id"]
+            for r in supabase.table("applications").select("job_id").eq("status", "rejected").execute().data
+        }
+        jobs = [j for j in all_jobs if j["job_id"] not in tailored_ids and j["job_id"] not in rejected_ids]
 
-    for row in rows:
-        jid = row["job_id"]
-        tailored = row["tailored_json"]
-        company  = job_data.get(jid, {}).get("company", "")
-        print(f"[builder] processing job_id: {jid} ({company})")
+    if not jobs:
+        print("[builder] no pending jobs found")
+        return
+
+    print(f"[builder] building {len(jobs)} resumes (tailor + build merged)")
+
+    for job in jobs:
+        jid = job["job_id"]
+        title = job["title"]
+        company = job["company"]
+        role = job.get("detected_role", "software_developer")
+
+        print(f"[builder] {company} — {title} (role: {role})")
 
         try:
-            docx_path = build_docx(tailored)
-            pdf_path = build_pdf(tailored, docx_path)
+            # Load base resume and snap location to preferred city
+            base = load_base_resume()
+            base["location"] = map_to_preferred_location(job.get("location", ""))
+
+            # Build PDF
+            docx_path = build_docx(base, company=company)
+            pdf_path = build_pdf(base, docx_path)
             url = upload_pdf(pdf_path, jid)
 
-            supabase.table("resumes").update({"pdf_url": url}).eq("id", row["id"]).execute()
+            # INSERT into resumes with both tailored_json and pdf_url
+            supabase.table("resumes").insert({
+                "job_id": jid,
+                "role": role,
+                "tailored_json": base,
+                "ats_score": None,
+                "missing_keywords": [],
+                "pdf_url": url,
+            }).execute()
+
             print(f"[builder] done: {jid}")
 
         except Exception as e:

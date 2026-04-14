@@ -1,6 +1,6 @@
 """
 scheduler.py — runs the full pipeline every 60 minutes:
-  scrape (parallel per role) -> tailor -> build PDF -> apply (sequential)
+  scrape (parallel per role) -> build PDF -> apply (sequential)
 
 Usage:
     python scheduler.py
@@ -19,7 +19,6 @@ from dotenv import load_dotenv
 from supabase import create_client
 
 from agent.scraper import scrape_for_role
-from agent.tailor import run_tailor
 from agent.resume_builder import run_builder
 from agent.linkedin_filler import run_filler
 from config.settings import ROLE_KEYWORDS, load_job_titles
@@ -121,7 +120,7 @@ def _run_pipeline_inner():
     print(f"\n[scheduler] === pipeline started at {start.strftime('%Y-%m-%d %H:%M:%S')} ===")
 
     # ── Step 1: Parallel scraping (one browser per role) ─────────────────────
-    print("[scheduler] step 1/4 — scraping LinkedIn (parallel per role)...")
+    print("[scheduler] step 1/3 — scraping LinkedIn (parallel per role)...")
     total_scraped = 0
     try:
         titles = load_job_titles()
@@ -136,30 +135,18 @@ def _run_pipeline_inner():
     except Exception as e:
         print(f"[scheduler] scraper error: {e}")
 
-    # ── Skip remaining steps if no jobs were scraped ────────────────────────────
     if total_scraped == 0:
-        print("[scheduler] no new jobs found — skipping tailor/builder/filler stages")
-        elapsed = (datetime.now() - start).seconds
-        mins, secs = divmod(elapsed, 60)
-        print(f"[scheduler] === pipeline complete in {mins}m {secs}s ===\n")
-        return
+        print("[scheduler] no new jobs scraped — continuing to process any pending jobs in DB")
 
-    # ── Step 2: Tailor resumes with Groq ─────────────────────────────────────
-    print("[scheduler] step 2/4 — tailoring resumes...")
-    try:
-        run_tailor()
-    except Exception as e:
-        print(f"[scheduler] tailor error: {e}")
-
-    # ── Step 3: Build PDFs ────────────────────────────────────────────────────
-    print("[scheduler] step 3/4 — building PDFs...")
+    # ── Step 2: Build PDFs (merged tailor + build) ────────────────────────────
+    print("[scheduler] step 2/3 — building PDFs...")
     try:
         run_builder()
     except Exception as e:
         print(f"[scheduler] builder error: {e}")
 
-    # ── Step 4: Apply (sequential — one at a time for LinkedIn safety) ────────
-    print("[scheduler] step 4/4 — applying to jobs (sequential)...")
+    # ── Step 3: Apply (sequential — one at a time for LinkedIn safety) ────────
+    print("[scheduler] step 3/3 — applying to jobs (sequential)...")
     try:
         asyncio.run(run_filler())
     except Exception as e:
