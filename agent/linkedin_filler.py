@@ -1,4 +1,5 @@
 import os
+import re
 import random
 import asyncio
 import tempfile
@@ -132,15 +133,59 @@ async def login(context, page):
 
 
 # ---------------------------------------------------------------------------
-# Download PDF from Supabase Storage to a temp file
+# Select and prepare resume from local files (no tailoring)
 # ---------------------------------------------------------------------------
 
-async def download_pdf(pdf_url: str) -> str:
-    """Download PDF from Supabase Storage URL to a temp file. Returns path."""
-    import urllib.request
-    tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".pdf")
-    urllib.request.urlretrieve(pdf_url, tmp.name)
-    return tmp.name
+RESUME_FRONTEND = r"C:\Users\Asus\Downloads\Rakul_Kandavel_Final.docx"
+RESUME_FULLSTACK = r"C:\Users\Asus\Downloads\Rakul_Kandavel_SWE (8).docx"
+
+# Keywords to detect resume type
+FRONTEND_KEYWORDS = {"react", "frontend", "web", "vue", "angular", "next.js", "typescript", "javascript"}
+FULLSTACK_KEYWORDS = {"full-stack", "fullstack", "mobile", "flutter", "react native", "ios", "android", "backend"}
+
+
+def _select_resume_for_job(job: dict) -> str:
+    """
+    Select the appropriate resume file based on job title and description.
+    Frontend: 'Rakul_Kandavel_Final.docx'
+    Fullstack/Mobile/Software Developer: 'Rakul_Kandavel_SWE (8).docx'
+    """
+    title = (job.get("title", "") or "").lower()
+    desc = (job.get("description", "") or "").lower()
+    text = f"{title} {desc}"
+
+    # Count keyword matches
+    frontend_matches = sum(1 for kw in FRONTEND_KEYWORDS if kw in text)
+    fullstack_matches = sum(1 for kw in FULLSTACK_KEYWORDS if kw in text)
+
+    # Default to fullstack if fullstack keywords match better or equal
+    if fullstack_matches >= frontend_matches:
+        return RESUME_FULLSTACK
+    else:
+        return RESUME_FRONTEND
+
+
+def _convert_docx_to_pdf(docx_path: str) -> str:
+    """Convert DOCX to PDF using docx2pdf. Returns PDF path."""
+    from docx2pdf import convert
+    pdf_path = docx_path.replace(".docx", "_temp.pdf")
+    convert(docx_path, pdf_path)
+    print(f"[filler] converted {docx_path} → {pdf_path}")
+    return pdf_path
+
+
+async def prepare_resume_for_job(job: dict) -> str:
+    """
+    Select the right local resume and convert to PDF.
+    Returns path to PDF file.
+    """
+    docx_path = _select_resume_for_job(job)
+    company = job.get("company", "unknown")
+    title = job.get("title", "position")
+    print(f"[filler] selected resume: {docx_path} for {company} — {title}")
+
+    pdf_path = _convert_docx_to_pdf(docx_path)
+    return pdf_path
 
 
 # ---------------------------------------------------------------------------
@@ -202,7 +247,7 @@ async def _save_cached_answer(question_label: str, field_type: str, answer: str,
 
 async def _find_answer(label: str, answers: dict) -> tuple[str, bool]:
     """Find answer for label. Returns (value, matched: bool).
-    Priority: 1) cached answer, 2) screening_answers, 3) default
+    Priority: 1) cached answer, 2) screening_answers (substring + word-based), 3) default
     """
     label_n = _normalize(label)
 
@@ -211,9 +256,16 @@ async def _find_answer(label: str, answers: dict) -> tuple[str, bool]:
     if cached:
         return cached, True  # cached answer counts as "matched"
 
-    # Step 2: Check screening_answers
+    # Step 2: Check screening_answers - exact substring match
     for key, val in answers.items():
         if key.replace("_", " ") in label_n or label_n in key.replace("_", " "):
+            return str(val), True
+
+    # Step 2b: Word-based fallback for questions with filler words (e.g., "years of relevant experience")
+    # All significant words (>3 chars) from key must appear in label (handles LinkedIn's variations)
+    for key, val in answers.items():
+        key_words = [w for w in key.replace("_", " ").split() if len(w) > 3]
+        if len(key_words) >= 2 and all(re.search(r'\b' + re.escape(w), label_n) for w in key_words):
             return str(val), True
 
     # Step 3: Fall back to default
@@ -469,21 +521,22 @@ async def fill_modal_step(page, pdf_path: str, answers: dict, job_title: str = "
 # Apply to a single job
 # ---------------------------------------------------------------------------
 
-async def apply_to_job(page, job: dict, resume_row: dict, answers: dict) -> tuple[str, str, list[UnknownQuestion]]:
+async def apply_to_job(page, job: dict, answers: dict) -> tuple[str, str, list[UnknownQuestion]]:
     """
     Navigate to job, click Easy Apply, fill modal, submit.
+    Selects the appropriate local resume (no tailoring) and uses it directly.
     Returns (status, reason, unknown_questions): status is 'applied'|'failed'|'skipped'|'captcha_blocked'
     """
     url      = job["job_url"]
     job_id   = job["job_id"]
-    pdf_url  = resume_row.get("pdf_url", "")
     all_unknown: list[UnknownQuestion] = []
 
-    if not pdf_url:
-        print(f"[filler] no PDF for {job_id} — skipping")
-        return "skipped", "no PDF", []
-
-    pdf_path = await download_pdf(pdf_url)
+    # Select and prepare the appropriate resume from local files
+    try:
+        pdf_path = await prepare_resume_for_job(job)
+    except Exception as e:
+        print(f"[filler] failed to prepare resume for {job_id}: {e}")
+        return "skipped", f"resume prep failed: {e}", []
 
     try:
         # Use search URL with currentJobId — this gives the full LinkedIn experience
@@ -808,7 +861,8 @@ def log_application(job_id: str, status: str, resume_pdf_url: str = "", error: s
 
 
 def log_unknown_questions(job_id: str, unknowns: list[UnknownQuestion]):
-    """Log unrecognised form field labels to the database for user review."""
+    """Log unrecognised form field labels to the database for user review.
+    Preserves rows that the user has already answered to avoid asking again."""
     if not unknowns:
         return
     try:
@@ -825,10 +879,29 @@ def log_unknown_questions(job_id: str, unknowns: list[UnknownQuestion]):
             for q in unknowns
             if q.label.strip()
         ]
-        if rows:
-            supabase_admin.table("unknown_questions").delete().eq("job_id", job_id).execute()
-            supabase_admin.table("unknown_questions").insert(rows).execute()
-            print(f"[filler] logged {len(rows)} unknown question(s) for {job_id}")
+        if not rows:
+            return
+
+        # Fetch labels that already have user-provided answers for this job
+        answered_resp = supabase_admin.table("unknown_questions") \
+            .select("question_label") \
+            .eq("job_id", job_id) \
+            .not_("answer", "is", "null") \
+            .execute()
+        answered_labels = {r["question_label"] for r in (answered_resp.data or [])}
+
+        # Delete only unanswered rows for this job (preserve user answers)
+        supabase_admin.table("unknown_questions") \
+            .delete() \
+            .eq("job_id", job_id) \
+            .is_("answer", "null") \
+            .execute()
+
+        # Only insert questions that don't already have a user-provided answer
+        new_rows = [r for r in rows if r["question_label"] not in answered_labels]
+        if new_rows:
+            supabase_admin.table("unknown_questions").insert(new_rows).execute()
+            print(f"[filler] logged {len(new_rows)} unknown question(s) for {job_id}")
     except Exception as e:
         print(f"[filler] unknown_questions log error: {e}")
 
@@ -838,7 +911,7 @@ def log_unknown_questions(job_id: str, unknowns: list[UnknownQuestion]):
 # ---------------------------------------------------------------------------
 
 async def run_filler(test_limit: int = None, job_id: str = None, retry_skipped: bool = False):
-    # Get jobs that have a tailored resume with pdf_url but no application yet
+    # Apply to jobs using local resumes (no tailoring, no builder step required)
     # Order newest first so fresh jobs are tried before stale old ones
     all_jobs = supabase.table("jobs").select("*").order("created_at", desc=True).execute().data
     all_applications = supabase.table("applications").select("job_id, status").execute().data
@@ -849,21 +922,12 @@ async def run_filler(test_limit: int = None, job_id: str = None, retry_skipped: 
     else:
         done_ids = {r["job_id"] for r in all_applications if r["status"] in ("applied", "captcha_blocked", "skipped")}
 
-    resume_map = {
-        r["job_id"]: r
-        for r in supabase.table("resumes").select("*").execute().data
-        if r.get("pdf_url")
-    }
-
     if job_id:
         # Single job mode — always retry regardless of status
-        pending = [j for j in all_jobs if j["job_id"] == job_id and j["job_id"] in resume_map]
+        pending = [j for j in all_jobs if j["job_id"] == job_id]
     else:
-        # Jobs that have a resume and haven't been successfully applied to yet
-        pending = [
-            j for j in all_jobs
-            if j["job_id"] in resume_map and j["job_id"] not in done_ids
-        ]
+        # Jobs that haven't been successfully applied to yet
+        pending = [j for j in all_jobs if j["job_id"] not in done_ids]
 
     if test_limit:
         pending = pending[:test_limit]
@@ -916,8 +980,6 @@ async def run_filler(test_limit: int = None, job_id: str = None, retry_skipped: 
                 company = job["company"]
                 print(f"\n[filler] applying: {company} — {title}")
 
-                resume_row = resume_map[jid]
-
                 # If browser/page crashed, restart it
                 try:
                     if not browser.is_connected():
@@ -948,12 +1010,12 @@ async def run_filler(test_limit: int = None, job_id: str = None, retry_skipped: 
                     page = await context.new_page()
                     await login(context, page)
 
-                status, reason, unknowns = await apply_to_job(page, job, resume_row, answers)
+                status, reason, unknowns = await apply_to_job(page, job, answers)
 
                 log_application(
                     job_id=jid,
                     status=status,
-                    resume_pdf_url=resume_row.get("pdf_url", ""),
+                    resume_pdf_url="",
                     error=reason,
                 )
                 log_unknown_questions(job_id=jid, unknowns=unknowns)
