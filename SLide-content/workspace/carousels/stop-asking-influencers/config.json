@@ -1,0 +1,61 @@
+{
+  "profile": {
+    "display_name": "Luca Ferretti",
+    "handle": "@lucaferretti",
+    "verified": true,
+    "headshot_path": "C:/Users/Asus/OneDrive/Desktop/SLide-content/headshot.jpg",
+    "logo_mode": false
+  },
+  "theme": "light",
+  "carousel_name": "stop-asking-influencers",
+  "slides": [
+    {
+      "slide_number": 1,
+      "type": "hook_cover",
+      "hook_text": "STOP ASKING {INFLUENCERS} HOW TO DRESS",
+      "subtitle": "They're styling themselves, not you",
+      "accent_color": "pink",
+      "image_path": "./reference/hook-image.jpg"
+    },
+    {
+      "slide_number": 2,
+      "type": "regular",
+      "tweets": [
+        {
+          "text": "You've been copying outfits from people who've never seen your body, your wardrobe, or your life.\n\nEvery impulse buy that never gets worn? That's their style - not yours."
+        }
+      ],
+      "image_path": null
+    },
+    {
+      "slide_number": 3,
+      "type": "regular",
+      "tweets": [
+        {
+          "text": "Real style is what works for YOUR body and YOUR vibe.\n\nTry on real outfits from real brands - no guessing, no sponsored bias. Just what looks good on you."
+        }
+      ],
+      "image_path": null
+    },
+    {
+      "slide_number": 4,
+      "type": "regular",
+      "tweets": [
+        {
+          "text": "There's an app that does exactly this.\n\nJust type in what style you want - AI picks real outfits from real brands and tries them on you in seconds."
+        }
+      ],
+      "image_path": null
+    },
+    {
+      "slide_number": 5,
+      "type": "regular",
+      "tweets": [
+        {
+          "text": "Ready to dress for yourself?\n\nApp link in bio."
+        }
+      ],
+      "image_path": null
+    }
+  ]
+}

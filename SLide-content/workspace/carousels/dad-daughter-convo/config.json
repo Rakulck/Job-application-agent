@@ -1,0 +1,44 @@
+{
+  "profile": {
+    "display_name": "Dad",
+    "handle": "@therealdad",
+    "verified": false,
+    "headshot_path": "./reference/peter.jpg",
+    "logo_mode": false
+  },
+  "theme": "light",
+  "carousel_name": "dad-daughter-convo",
+  "slides": [
+    {
+      "slide_number": 1,
+      "type": "hook_cover",
+      "hook_text": "THIS DAD AND DAUGHTER {CONVO GOES VIRAL}",
+      "subtitle": "And honestly we understand why",
+      "accent_color": "pink",
+      "image_path": "./slide_2.png"
+    },
+    {
+      "slide_number": 2,
+      "type": "messaging",
+      "platform": "imessage",
+      "contact_name": "Dad",
+      "contact_avatar": "./reference/peter.jpg",
+      "messages": [
+        { "from": "them", "text": "why are you talking to your phone about clothes again" },
+        { "from": "me",   "text": "im asking AI what to wear dad" },
+        { "from": "them", "text": "your mother does that for free" },
+        { "from": "me",   "text": "she picks the wrong things every time lol" },
+        { "from": "them", "text": "wait so the phone just picks your outfit?" },
+        { "from": "me",   "text": "yes and tries real outfits on you. from actual brands" },
+        { "from": "them", "text": "does it work for dads too" },
+        { "from": "me",   "text": "why do you ask lol" }
+      ]
+    },
+    {
+      "slide_number": 3,
+      "type": "cta",
+      "text": "Yes it works for dads too.\n\nJust type what style you want - AI picks real outfits from real brands and tries them on you in seconds.",
+      "cta": "App link in bio."
+    }
+  ]
+}

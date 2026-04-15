@@ -116,6 +116,22 @@ export default function UnknownQuestionsPanel() {
 
       if (mergeErr) throw mergeErr;
 
+      // 3. Persist to cached_answers so agent finds it at priority 1 (exact label match)
+      // This ensures the answer persists across log_unknown_questions() deletes
+      const { error: cacheErr } = await supabase
+        .from("cached_answers")
+        .upsert(
+          {
+            question_label: group.label,
+            field_type: group.field_type,
+            options: group.options,
+            answer: answer.trim(),
+          },
+          { onConflict: "question_label" }
+        );
+
+      if (cacheErr) throw cacheErr;
+
       // Remove the answered group from the display
       setGroups((prev) => prev.filter((g) => g.label !== group.label));
       setSaving(null);
@@ -178,16 +194,36 @@ export default function UnknownQuestionsPanel() {
             <h3 className="font-medium text-gray-900 mb-1">{group.label}</h3>
             <p className="text-xs text-gray-500">
               Seen in {group.job_ids.length} job{group.job_ids.length !== 1 ? "s" : ""} •{" "}
-              {group.field_type === "text"
-                ? "Text input"
-                : group.field_type === "select"
-                  ? `Dropdown (${group.options.length} options)`
-                  : `Radio buttons (${group.options.length} options)`}
+              {group.field_type === "select"
+                ? `Dropdown (${group.options.length} options)`
+                : group.field_type === "radio"
+                  ? `Radio buttons (${group.options.length} options)`
+                  : `Text input (${group.field_type || "text"})`}
             </p>
           </div>
 
-          {/* Options dropdown if available */}
-          {group.options.length > 0 && (
+          {/* Render inputs based on field_type */}
+          {group.field_type === "radio" && group.options.length > 0 ? (
+            <div className="mb-3 space-y-2">
+              <label className="text-xs text-gray-600 block mb-1.5">Available options:</label>
+              {group.options.map((opt) => (
+                <label key={opt} className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="radio"
+                    name={`radio-${group.label}`}
+                    value={opt}
+                    checked={group.answer === opt}
+                    onChange={(e) => {
+                      group.answer = e.target.value;
+                      setGroups([...groups]);
+                    }}
+                    className="w-4 h-4 text-blue-600"
+                  />
+                  <span className="text-sm text-gray-700">{opt}</span>
+                </label>
+              ))}
+            </div>
+          ) : group.field_type === "select" && group.options.length > 0 ? (
             <div className="mb-3">
               <label className="text-xs text-gray-600 block mb-1.5">Available options:</label>
               <select
@@ -206,28 +242,44 @@ export default function UnknownQuestionsPanel() {
                 ))}
               </select>
             </div>
+          ) : null}
+
+          {/* Free-text input as fallback or for text/number/email/tel fields */}
+          {group.field_type !== "radio" && group.field_type !== "select" && (
+            <input
+              type={["number", "email", "tel"].includes(group.field_type) ? group.field_type : "text"}
+              placeholder="Enter your answer..."
+              className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent mb-3"
+              value={group.answer}
+              onChange={(e) => {
+                group.answer = e.target.value;
+                setGroups([...groups]);
+              }}
+              onKeyPress={(e) => {
+                if (e.key === "Enter") {
+                  saveAnswer(group, group.answer);
+                }
+              }}
+            />
           )}
 
-          {/* Free-text input as fallback or for text fields */}
-          <input
-            type="text"
-            placeholder={
-              group.options.length > 0
-                ? "Or type a custom answer..."
-                : "Enter your answer..."
-            }
-            className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent mb-3"
-            value={group.answer}
-            onChange={(e) => {
-              group.answer = e.target.value;
-              setGroups([...groups]);
-            }}
-            onKeyPress={(e) => {
-              if (e.key === "Enter") {
-                saveAnswer(group, group.answer);
-              }
-            }}
-          />
+          {(group.field_type === "radio" || group.field_type === "select") && (
+            <input
+              type="text"
+              placeholder="Or type a custom answer..."
+              className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent mt-2 mb-3"
+              value={group.answer}
+              onChange={(e) => {
+                group.answer = e.target.value;
+                setGroups([...groups]);
+              }}
+              onKeyPress={(e) => {
+                if (e.key === "Enter") {
+                  saveAnswer(group, group.answer);
+                }
+              }}
+            />
+          )}
 
           <div className="flex gap-2">
             <button

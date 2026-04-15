@@ -1,0 +1,71 @@
+{
+  "profile": {
+    "display_name": "Slidez",
+    "handle": "@slidez",
+    "verified": true,
+    "headshot_path": "C:/Users/Asus/Downloads/Logo-new.jpg",
+    "logo_mode": true
+  },
+  "theme": "light",
+  "carousel_name": "virtual-tryon-changed",
+  "slides": [
+    {
+      "slide_number": 1,
+      "type": "hook_cover",
+      "hook_text": "VIRTUAL TRY-ON {JUST} CHANGED",
+      "subtitle": "And most people haven't noticed yet.",
+      "accent_color": "cyan",
+      "image_path": "./reference/hook-image.jpg"
+    },
+    {
+      "slide_number": 2,
+      "type": "regular",
+      "tweets": [
+        {
+          "text": "Old virtual try-on: paste a link, see clothes on a mannequin, guess how it looks on you.\n\nNew virtual try-on: one photo. Your body. Real brands. 3 seconds."
+        }
+      ],
+      "image_path": null
+    },
+    {
+      "slide_number": 3,
+      "type": "regular",
+      "tweets": [
+        {
+          "text": "The virtual try-on market just hit $2.5 billion.\n\nBecause online shoppers are tired of buying things that look nothing like the photos."
+        }
+      ],
+      "image_path": null
+    },
+    {
+      "slide_number": 4,
+      "type": "regular",
+      "tweets": [
+        {
+          "text": "What changed: AI can now read your style.\n\nNot just overlay clothes on a model. Actually understand what works for your body, your vibe, your wardrobe."
+        }
+      ],
+      "image_path": null
+    },
+    {
+      "slide_number": 5,
+      "type": "regular",
+      "tweets": [
+        {
+          "text": "Slidez is built on this.\n\nShare an outfit from anywhere. See it on you. Shop the exact item. No guessing."
+        }
+      ],
+      "image_path": null
+    },
+    {
+      "slide_number": 6,
+      "type": "regular",
+      "tweets": [
+        {
+          "text": "The future of getting dressed is already here.\n\nTry Slidez free — link in bio \ud83d\udc46"
+        }
+      ],
+      "image_path": null
+    }
+  ]
+}

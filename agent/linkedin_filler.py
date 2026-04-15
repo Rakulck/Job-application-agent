@@ -165,27 +165,16 @@ def _select_resume_for_job(job: dict) -> str:
         return RESUME_FRONTEND
 
 
-def _convert_docx_to_pdf(docx_path: str) -> str:
-    """Convert DOCX to PDF using docx2pdf. Returns PDF path."""
-    from docx2pdf import convert
-    pdf_path = docx_path.replace(".docx", "_temp.pdf")
-    convert(docx_path, pdf_path)
-    print(f"[filler] converted {docx_path} → {pdf_path}")
-    return pdf_path
-
-
 async def prepare_resume_for_job(job: dict) -> str:
     """
-    Select the right local resume and convert to PDF.
-    Returns path to PDF file.
+    Select the right local resume and return it directly.
+    No conversion, no modifications — apply as-is.
     """
     docx_path = _select_resume_for_job(job)
     company = job.get("company", "unknown")
     title = job.get("title", "position")
     print(f"[filler] selected resume: {docx_path} for {company} — {title}")
-
-    pdf_path = _convert_docx_to_pdf(docx_path)
-    return pdf_path
+    return docx_path
 
 
 # ---------------------------------------------------------------------------
@@ -834,11 +823,6 @@ async def apply_to_job(page, job: dict, answers: dict) -> tuple[str, str, list[U
     except Exception as e:
         print(f"[filler] error on {url}: {e}")
         return "failed", str(e)[:200], all_unknown
-    finally:
-        try:
-            os.unlink(pdf_path)
-        except Exception:
-            pass
 
 
 # ---------------------------------------------------------------------------

@@ -1,0 +1,78 @@
+{
+  "profile": {
+    "display_name": "Slidez",
+    "handle": "@slidez",
+    "verified": true,
+    "headshot_path": "C:/Users/Asus/Downloads/Logo-new.jpg",
+    "logo_mode": true
+  },
+  "theme": "light",
+  "carousel_name": "find-your-style-ai",
+  "slides": [
+    {
+      "slide_number": 1,
+      "type": "regular",
+      "tweets": [
+        {
+          "text": "You don't have a style problem.\n\nYou have a discovery problem. AI fixes that. \u2728",
+          "is_hook": true
+        }
+      ],
+      "image_path": "./reference/hook-image.jpg",
+      "image_position": "below"
+    },
+    {
+      "slide_number": 2,
+      "type": "regular",
+      "tweets": [
+        {
+          "text": "Your style is already in there.\n\nEvery outfit you've loved has a pattern — colors, silhouettes, the same vibe over and over. AI reads it in seconds."
+        }
+      ],
+      "image_path": null
+    },
+    {
+      "slide_number": 3,
+      "type": "regular",
+      "tweets": [
+        {
+          "text": "The same AI powering luxury fashion houses analyzes 3 million outfit photos daily.\n\nNow that intelligence is in your pocket."
+        }
+      ],
+      "image_path": null
+    },
+    {
+      "slide_number": 4,
+      "type": "regular",
+      "tweets": [
+        {
+          "text": "Stop guessing if it works. AI shows you the outfit on YOUR body before you spend anything."
+        },
+        {
+          "text": "Real brand items. Not generic AI clothes. Real outfits from stores you can actually shop."
+        }
+      ],
+      "image_path": null
+    },
+    {
+      "slide_number": 5,
+      "type": "regular",
+      "tweets": [
+        {
+          "text": "The AI styling market hit $2.5 billion in 2024.\n\nYour wardrobe hasn't caught up yet. Slidez changes that."
+        }
+      ],
+      "image_path": null
+    },
+    {
+      "slide_number": 6,
+      "type": "regular",
+      "tweets": [
+        {
+          "text": "Your style is one prompt away.\n\nTry Slidez free — link in bio \ud83d\udc46"
+        }
+      ],
+      "image_path": null
+    }
+  ]
+}

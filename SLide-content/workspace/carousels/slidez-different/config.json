@@ -1,0 +1,75 @@
+{
+  "profile": {
+    "display_name": "Slidez",
+    "handle": "@slidez",
+    "verified": true,
+    "headshot_path": "C:/Users/Asus/Downloads/Logo-new.jpg",
+    "logo_mode": true
+  },
+  "theme": "light",
+  "carousel_name": "slidez-different",
+  "slides": [
+    {
+      "slide_number": 1,
+      "type": "regular",
+      "tweets": [
+        {
+          "text": "Every other styling app has the same problem.\n\nSlidez doesn't. \u26a1",
+          "is_hook": true
+        }
+      ],
+      "image_path": "./reference/hook-image-b.jpg",
+      "image_position": "below"
+    },
+    {
+      "slide_number": 2,
+      "type": "regular",
+      "tweets": [
+        {
+          "text": "Other apps make you paste links.\n\nHunt for the URL. Copy it. Open the app. Paste it. Hope it works.\n\nSlidez? Just share directly from any app. Done."
+        }
+      ],
+      "image_path": null
+    },
+    {
+      "slide_number": 3,
+      "type": "regular",
+      "tweets": [
+        {
+          "text": "Other apps show outfits on a mannequin or a random AI model.\n\nSlidez shows them on YOU. One real photo. That's it."
+        }
+      ],
+      "image_path": null
+    },
+    {
+      "slide_number": 4,
+      "type": "regular",
+      "tweets": [
+        {
+          "text": "Other apps style you in generic AI clothes no one sells.\n\nSlidez uses real items from real brands. You can actually buy what you see."
+        }
+      ],
+      "image_path": null
+    },
+    {
+      "slide_number": 5,
+      "type": "regular",
+      "tweets": [
+        {
+          "text": "Other apps give everyone the same suggestions.\n\nSlidez reads your style — your colors, your silhouettes, your vibe — and builds around it."
+        }
+      ],
+      "image_path": null
+    },
+    {
+      "slide_number": 6,
+      "type": "regular",
+      "tweets": [
+        {
+          "text": "This is what a styling app should have been from day one.\n\nTry Slidez free — link in bio \ud83d\udc46"
+        }
+      ],
+      "image_path": null
+    }
+  ]
+}

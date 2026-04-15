@@ -1,0 +1,76 @@
+{
+  "profile": {
+    "display_name": "Slidez",
+    "handle": "@slidez",
+    "verified": true,
+    "headshot_path": "C:/Users/Asus/Downloads/Logo-new.jpg",
+    "logo_mode": true
+  },
+  "theme": "light",
+  "carousel_name": "virtual-tryon-mainstream",
+  "slides": [
+    {
+      "slide_number": 1,
+      "type": "hook_cover",
+      "hook_text": "VIRTUAL TRY-ON {JUST WENT} MAINSTREAM",
+      "subtitle": "And the fashion industry will never be the same",
+      "accent_color": "cyan",
+      "image_path": "./reference/hook-image.jpg"
+    },
+    {
+      "slide_number": 2,
+      "type": "regular",
+      "tweets": [
+        {
+          "text": "Amazon. Google. Zara. All launched virtual try-on in the same year.\n\n60% of Gen Z now expects to try before they buy - online.\n\nThis isn't a trend anymore. It's the new standard."
+        }
+      ],
+      "image_path": "./reference/slide2.jpg",
+      "image_position": "below"
+    },
+    {
+      "slide_number": 3,
+      "type": "regular",
+      "tweets": [
+        {
+          "text": "3 years ago this was a gimmick. Now it's a dealbreaker.\n\nBrands without virtual try-on are losing customers to brands that have it.\n\nThe gap is widening every quarter."
+        }
+      ],
+      "image_path": "./reference/slide3.jpg",
+      "image_position": "below"
+    },
+    {
+      "slide_number": 4,
+      "type": "regular",
+      "tweets": [
+        {
+          "text": "The numbers don't lie.\n\nVirtual try-on cuts returns by up to 64%. Increases purchase confidence by 2.5x. Brands using it see 30% higher conversion.\n\nThis is not a feature. It's a revenue shift."
+        }
+      ],
+      "image_path": "./reference/slide4.jpg",
+      "image_position": "below"
+    },
+    {
+      "slide_number": 5,
+      "type": "regular",
+      "tweets": [
+        {
+          "text": "This is exactly what we built Slidez for.\n\nOne photo. Real outfits from real brands. Try before you buy - without leaving your phone."
+        }
+      ],
+      "image_path": "./reference/slide5.jpg",
+      "image_position": "below"
+    },
+    {
+      "slide_number": 6,
+      "type": "regular",
+      "tweets": [
+        {
+          "text": "The shift already happened.\n\nThe question is whether you're ahead of it or behind it.\n\nFollow @slidez - we track this so you don't have to."
+        }
+      ],
+      "image_path": "./reference/slide6.jpg",
+      "image_position": "below"
+    }
+  ]
+}

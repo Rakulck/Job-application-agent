@@ -1,0 +1,70 @@
+{
+  "profile": {
+    "display_name": "Slidez",
+    "handle": "@slidez",
+    "verified": true,
+    "headshot_path": "C:/Users/Asus/Downloads/Logo-new.jpg",
+    "logo_mode": true
+  },
+  "theme": "light",
+  "carousel_name": "stop-guessing",
+  "slides": [
+    {
+      "slide_number": 1,
+      "type": "hook_cover",
+      "hook_text": "STOP {GUESSING} WHAT TO WEAR",
+      "accent_color": "orange",
+      "image_path": "./reference/hook-image.jpg"
+    },
+    {
+      "slide_number": 2,
+      "type": "regular",
+      "tweets": [
+        {
+          "text": "You open your wardrobe every morning.\n\nStare at it for 10 minutes. Put on the same thing anyway."
+        }
+      ],
+      "image_path": null
+    },
+    {
+      "slide_number": 3,
+      "type": "regular",
+      "tweets": [
+        {
+          "text": "The problem isn't your wardrobe.\n\nIt's that you don't have a stylist showing you what works for YOUR body, YOUR style, YOUR mood."
+        }
+      ],
+      "image_path": null
+    },
+    {
+      "slide_number": 4,
+      "type": "regular",
+      "tweets": [
+        {
+          "text": "Slidez fixes this in seconds.\n\nUpload one photo. AI reads your style. Get real outfit suggestions from brands you can actually shop."
+        }
+      ],
+      "image_path": null
+    },
+    {
+      "slide_number": 5,
+      "type": "regular",
+      "tweets": [
+        {
+          "text": "See an outfit on TikTok? Share it straight to Slidez.\n\nNo links. No copy-paste. Just your next fit — styled on you."
+        }
+      ],
+      "image_path": null
+    },
+    {
+      "slide_number": 6,
+      "type": "regular",
+      "tweets": [
+        {
+          "text": "Stop guessing. Start wearing.\n\nTry Slidez free — link in bio \ud83d\udc46"
+        }
+      ],
+      "image_path": null
+    }
+  ]
+}

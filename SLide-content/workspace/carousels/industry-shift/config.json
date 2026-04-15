@@ -1,0 +1,71 @@
+{
+  "profile": {
+    "display_name": "Slidez",
+    "handle": "@slidez",
+    "verified": true,
+    "headshot_path": "C:/Users/Asus/Downloads/Logo-new.jpg",
+    "logo_mode": true
+  },
+  "theme": "light",
+  "carousel_name": "industry-shift",
+  "slides": [
+    {
+      "slide_number": 1,
+      "type": "hook_cover",
+      "hook_text": "FASHION {JUST CHANGED}",
+      "subtitle": "And most people haven't noticed yet",
+      "accent_color": "orange",
+      "image_path": "./reference/hook-image.jpg"
+    },
+    {
+      "slide_number": 2,
+      "type": "regular",
+      "tweets": [
+        {
+          "text": "The virtual try-on market just hit $6.4 billion.\n\nBy 2030: $15.8 billion.\n\nFashion is no longer about what's on the rack. It's about what you can see on YOU — instantly."
+        }
+      ],
+      "image_path": null
+    },
+    {
+      "slide_number": 3,
+      "type": "regular",
+      "tweets": [
+        {
+          "text": "Online shoppers return 1 in 3 items because they couldn't tell how it would look.\n\nVirtual try-on cuts that return rate by up to 64%.\n\nThat's not a feature. That's a fundamental shift in how fashion works."
+        }
+      ],
+      "image_path": null
+    },
+    {
+      "slide_number": 4,
+      "type": "regular",
+      "tweets": [
+        {
+          "text": "AI isn't just suggesting outfits.\n\nIt's replacing the fitting room. The personal stylist. The long walk back to the rack.\n\nGen Z already expects this. Everyone else is catching up."
+        }
+      ],
+      "image_path": null
+    },
+    {
+      "slide_number": 5,
+      "type": "regular",
+      "tweets": [
+        {
+          "text": "This is exactly why we built Slidez.\n\nOne photo. Real outfits from real brands. Buy what you know looks good.\n\nNo guessing. No returns."
+        }
+      ],
+      "image_path": null
+    },
+    {
+      "slide_number": 6,
+      "type": "regular",
+      "tweets": [
+        {
+          "text": "The brands that adapt to AI styling will win this decade.\n\nSo will the people who dress smarter.\n\nFollow @slidez — we track this so you don't have to."
+        }
+      ],
+      "image_path": null
+    }
+  ]
+}

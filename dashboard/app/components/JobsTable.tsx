@@ -322,16 +322,30 @@ export default function JobsTable({
                       </div>
                     )}
 
-                    {/* Text input fallback */}
-                    <input
-                      type="text"
-                      placeholder={q.options?.length ? "Or type custom answer..." : "Enter your answer..."}
-                      value={answerInputs[q.id] || ""}
-                      onChange={(e) =>
-                        setAnswerInputs({ ...answerInputs, [q.id]: e.target.value })
-                      }
-                      className="w-full px-3 py-2 text-sm text-black border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 placeholder-gray-400"
-                    />
+                    {/* Free-text input fallback */}
+                    {q.field_type !== "select" && q.field_type !== "radio" && (
+                      <input
+                        type={["number", "email", "tel"].includes(q.field_type) ? q.field_type : "text"}
+                        placeholder="Enter your answer..."
+                        value={answerInputs[q.id] || ""}
+                        onChange={(e) =>
+                          setAnswerInputs({ ...answerInputs, [q.id]: e.target.value })
+                        }
+                        className="w-full px-3 py-2 text-sm text-black border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 placeholder-gray-400"
+                      />
+                    )}
+
+                    {(q.field_type === "radio" || q.field_type === "select") && (
+                      <input
+                        type="text"
+                        placeholder="Or type custom answer..."
+                        value={answerInputs[q.id] || ""}
+                        onChange={(e) =>
+                          setAnswerInputs({ ...answerInputs, [q.id]: e.target.value })
+                        }
+                        className="w-full mt-2 px-3 py-2 text-sm text-black border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 placeholder-gray-400"
+                      />
+                    )}
 
                     <button
                       onClick={() =>
